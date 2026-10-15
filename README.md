@@ -16,6 +16,15 @@
 
 ![复杂编辑器](docs/screenshots/advanced_editor.png)
 
+<details>
+<summary>English UI(菜单栏 <code>Language</code> 一键切换,点击展开截图)</summary>
+
+![Main window (English)](docs/screenshots/main_window_en.png)
+
+![Advanced editor (English)](docs/screenshots/advanced_editor_en.png)
+
+</details>
+
 ---
 
 ## 怎么打开
