@@ -348,7 +348,7 @@ class NodeEditorUiTests(unittest.TestCase):
 
     def test_mouse_click_selects_node_and_updates_properties(self):
         from PySide6.QtCore import QEvent, QPointF, Qt
-        from PySide6.QtGui import QMouseEvent
+        from PySide6.QtGui import QMouseEvent, QPointingDevice
         from PySide6.QtWidgets import QApplication
         from src.ui.skybox_noise.node_editor import _NodeItem
 
@@ -364,14 +364,20 @@ class NodeEditorUiTests(unittest.TestCase):
         viewport_point = dlg._view.mapFromScene(scene_point)
         # 不用 QTest.mouseClick:它在 Windows 上走操作系统级输入注入,
         # 在 CI 的无桌面会话里会触发 Qt 原生堆损坏(0xC0000374)。
-        # 直接向 viewport 投递 QMouseEvent,同样覆盖 view→scene→item 的完整事件链。
+        # 改为直接向 viewport 投递 QMouseEvent,同样覆盖 view→scene→item 的
+        # 完整事件链。注意必须用带 globalPos + device 的完整构造,
+        # 缺省构造(globalPos=(0,0))会被 QGraphicsView 忽略,点不中节点。
+        device = QPointingDevice.primaryPointingDevice()
+        global_point = dlg._view.viewport().mapToGlobal(viewport_point)
         for ev_type in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease):
             ev = QMouseEvent(
                 ev_type,
                 QPointF(viewport_point),
+                QPointF(global_point),
                 Qt.MouseButton.LeftButton,
                 Qt.MouseButton.LeftButton,
                 Qt.KeyboardModifier.NoModifier,
+                device,
             )
             QApplication.sendEvent(dlg._view.viewport(), ev)
         self.app.processEvents()
