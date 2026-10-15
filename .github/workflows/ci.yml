@@ -40,22 +40,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Per-file test run (diagnostic)
-        shell: cmd
-        run: |
-          rem 用 discover -p 逐文件在独立进程运行(与完整运行相同的导入语义)
-          rem -X faulthandler: 原生崩溃时把 Python 栈直接写到控制台
-          for %%f in (tests\test_*.py) do (
-            echo === %%~nxf ===
-            python -X faulthandler -m unittest discover -s tests -p %%~nxf -v
-          )
-          exit /b 0
-
       - name: Run unit tests
         env:
           QT_QPA_PLATFORM: offscreen
         shell: cmd
         run: |
+          rem -X faulthandler: 若原生代码崩溃(如曾出现的 0xC0000374 堆损坏),
+          rem 直接把 Python 栈打印到控制台,避免"静默失败"
+          rem stdout/stderr 落盘再打印,保证崩溃时也能看到已产生的输出
           python -X faulthandler -m unittest discover -s tests -q 1> unittest_out.txt 2> unittest_err.txt
           set CODE=%ERRORLEVEL%
           echo --- STDOUT ---
