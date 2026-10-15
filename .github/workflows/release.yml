@@ -23,7 +23,7 @@ permissions:
 jobs:
   release:
     name: Build & publish release
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
       QT_QPA_PLATFORM: offscreen
 

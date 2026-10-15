@@ -16,7 +16,7 @@ on:
 jobs:
   test:
     name: Test (Python ${{ matrix.python-version }})
-    runs-on: windows-latest
+    runs-on: windows-2022
     env:
       # CI 控制台是 cp1252,强制 UTF-8 防止中文输出触发 UnicodeEncodeError
       PYTHONIOENCODING: utf-8
