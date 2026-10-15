@@ -6,6 +6,16 @@
 
 工具是双击 `texpipe.bat` 启动的桌面 GUI,同时带一个命令行(CLI),批处理和流水线场景用。
 
+## 界面预览
+
+**主界面(编辑模式)**:4 个通道槽 + 右侧实时预览,支持拖图载入、RGBA 自动拆分。
+
+![主界面](docs/screenshots/main_window.png)
+
+**复杂编辑器**:PS 风格调整(亮度/对比/曝光/伽马)、贝塞尔曲线、15 种混合模式、原图/结果对照。
+
+![复杂编辑器](docs/screenshots/advanced_editor.png)
+
 ---
 
 ## 怎么打开
