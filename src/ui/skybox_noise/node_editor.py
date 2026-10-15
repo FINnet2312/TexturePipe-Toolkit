@@ -108,13 +108,19 @@ class _NodeItem(QGraphicsItem):
         n_in = len(node_def.inputs)
         n_out = len(node_def.outputs)
         self._h = self._title_h + max(n_in, n_out, 1) * self._port_h + 6
+        # 端口是 Python 子类且重写了 mousePressEvent,必须留住 Python 引用;
+        # 否则包装对象被 GC 后,C++ 侧虚调用(paint / 鼠标事件)会访问已释放的
+        # Python 粘合层——CI 上表现为随机堆损坏(0xC0000374)。
+        self._ports: list[_PortItem] = []
         for i, port in enumerate(node_def.inputs):
-            _PortItem(self, 0, self._title_h + i * self._port_h + self._port_h / 2,
-                      port, is_input=True, idx=i)
+            self._ports.append(
+                _PortItem(self, 0, self._title_h + i * self._port_h + self._port_h / 2,
+                          port, is_input=True, idx=i))
         for i, port in enumerate(node_def.outputs):
-            _PortItem(self, self._w,
-                      self._title_h + i * self._port_h + self._port_h / 2,
-                      port, is_input=False, idx=i)
+            self._ports.append(
+                _PortItem(self, self._w,
+                          self._title_h + i * self._port_h + self._port_h / 2,
+                          port, is_input=False, idx=i))
         self._drag_start = None
 
     def boundingRect(self) -> QRectF:
@@ -407,11 +413,15 @@ class NodeEditorDialog(QDialog):
     def _rebuild_scene(self):
         self._scene.clear()
         self._edges: list[_EdgeItem] = []
+        # 节点项同样是 Python 子类(paint / mousePressEvent 等虚函数),
+        # 必须留住 Python 引用,理由同 _NodeItem._ports。
+        self._node_items: list[_NodeItem] = []
         for node in self.graph.nodes.values():
             nd = get_node_def(node.type_id)
             item = _NodeItem(node, nd, on_moved=self._on_node_moved)
             self._scene.addItem(item)
             item.setSelected(node.id == self._selected_node_id)
+            self._node_items.append(item)
         self._refresh_edges()
 
     def _refresh_edges(self):
