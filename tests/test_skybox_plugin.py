@@ -21,6 +21,30 @@ from src.core.plugin_manager import PluginManager  # noqa: E402
 from src.ui.plugins import discover  # noqa: E402
 
 
+def _drain_workers(timeout_ms: int = 10000) -> None:
+    """取消并等待所有仍在运行的 RenderWorker。
+
+    部分测试(drop 载入图片等)会触发真实渲染。若不等待,后台 QThread
+    会在后续测试甚至解释器退出阶段继续访问 Qt / numpy 原生状态,在 CI 上
+    表现为随机位置、随机 Python 版本的 0xC0000374 / access violation。
+    """
+    import gc
+
+    from src.ui.skybox_noise.worker import RenderWorker
+
+    gc.collect()
+    workers = [
+        obj for obj in list(gc.get_objects())
+        if isinstance(obj, RenderWorker)
+    ]
+    for w in workers:
+        if w.isRunning():
+            w.cancel()
+    for w in workers:
+        if w.isRunning():
+            w.wait(timeout_ms)
+
+
 class PluginCoreTests(unittest.TestCase):
     def test_plugin_descriptor(self):
         from src.ui.skybox_noise.plugin import PLUGIN
@@ -271,6 +295,9 @@ class SkyboxNoiseUsabilityTests(unittest.TestCase):
 
     def tearDown(self):
         self._tmp.cleanup()
+        # 部分测试(drop 载入等)会启动真实渲染 worker,必须在用例结束时
+        # 收干,否则后台线程泄漏到后续用例,CI 上随机崩溃
+        _drain_workers()
 
     def _widget(self):
         from src.ui.skybox_noise.main_window import SkyboxNoiseWidget
