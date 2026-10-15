@@ -1,0 +1,81 @@
+# Release — 发布工作流
+# 推送 v* 标签(如 v1.2.0)时自动:
+#   1. 校验标签版本与 VERSION 文件一致
+#   2. 跑全部单元测试(不合格就不发版)
+#   3. 用 build_exe.ps1 走与本地完全相同的 PyInstaller 打包流程(含冻结程序冒烟测试)
+#   4. 压缩为 Texpipe-<版本>-windows-x64.zip 并计算 sha256
+#   5. 创建 GitHub Release 并上传 zip
+#
+# 用法:
+#   1. 把 VERSION 改成新版本号并提交
+#   2. git tag v1.2.0
+#   3. git push origin v1.2.0
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & publish release
+    runs-on: windows-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Verify tag matches VERSION
+        shell: pwsh
+        run: |
+          $tag = "${env:GITHUB_REF_NAME}".TrimStart("v")
+          $ver = (Get-Content VERSION -Raw).Trim()
+          if ($tag -ne $ver) {
+            throw "Tag version '$tag' does not match VERSION file '$ver'. Update VERSION, commit, then re-tag."
+          }
+          Write-Host "[ok] tag and VERSION both $ver"
+
+      - name: Run unit tests
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m unittest discover -s tests -q
+
+      - name: Build exe (PyInstaller, same as local build)
+        shell: pwsh
+        run: ./build_exe.ps1
+
+      - name: Package zip and compute sha256
+        shell: pwsh
+        run: |
+          $ver = "${env:GITHUB_REF_NAME}".TrimStart("v")
+          $zip = "Texpipe-$ver-windows-x64.zip"
+          Compress-Archive -Path dist\Texpipe -DestinationPath $zip -Force
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          "ZIP=$zip" >> $env:GITHUB_ENV
+          "HASH=$hash" >> $env:GITHUB_ENV
+          Write-Host "[ok] $zip  sha256:$hash"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP }}
+          generate_release_notes: true
+          body: |
+            Texpipe ${{ github.ref_name }} — Windows x64
+
+            下载 zip,解压后双击 `Texpipe.exe` 即可运行,无需安装 Python。
+
+            sha256: ${{ env.HASH }}
