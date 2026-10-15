@@ -1,0 +1,48 @@
+# CI — 持续集成
+# 每次 push / PR 到 main 时,在干净的 Windows 环境里:
+#   1. 安装依赖
+#   2. 跑全部单元测试(unittest, headless offscreen Qt)
+#   3. 跑 Skybox 冒烟测试
+# 任何一步失败,GitHub 会在 commit / PR 上标红,阻止带病代码合入。
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run unit tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m unittest discover -s tests -q
+
+      - name: Skybox smoke test
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python examples/verify_skybox_smoke.py
