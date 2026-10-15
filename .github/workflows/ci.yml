@@ -45,16 +45,17 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         shell: cmd
         run: |
-          rem -X faulthandler: 若原生代码崩溃(如曾出现的 0xC0000374 堆损坏),
-          rem 直接把 Python 栈打印到控制台,避免"静默失败"
-          rem stdout/stderr 落盘再打印,保证崩溃时也能看到已产生的输出
-          python -X faulthandler -m unittest discover -s tests -q 1> unittest_out.txt 2> unittest_err.txt
-          set CODE=%ERRORLEVEL%
-          echo --- STDOUT ---
-          type unittest_out.txt
-          echo --- STDERR ---
-          type unittest_err.txt
-          exit /b %CODE%
+          rem 每个测试文件在独立进程中运行:
+          rem 1) Qt 原生状态在跨文件共享时曾在 CI 上引发堆损坏(0xC0000374),
+          rem    进程隔离可彻底避免跨文件污染
+          rem 2) 任何崩溃都能精确定位到具体文件
+          rem -X faulthandler: 原生崩溃时把 Python 栈直接打印到控制台
+          set FAIL=0
+          for %%f in (tests\test_*.py) do (
+            echo === %%~nxf ===
+            python -X faulthandler -m unittest discover -s tests -p %%~nxf -q || set FAIL=1
+          )
+          exit /b %FAIL%
 
       - name: Skybox smoke test
         env:
