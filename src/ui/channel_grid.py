@@ -50,6 +50,7 @@ from src.io.workspace import (
     save_recovery_snapshot,
 )
 from src.ui.slot_widget import SlotWidget
+from src.ui.i18n import i18n, tr
 
 from PySide6.QtWidgets import QCheckBox
 
@@ -110,6 +111,7 @@ class ChannelGridWidget(QWidget):
 
         self._build_ui()
         self._wire_signals()
+        i18n.language_changed.connect(self.retranslate)
 
         # debounce timer
         self._debounce = QTimer(self)
@@ -128,24 +130,24 @@ class ChannelGridWidget(QWidget):
 
         # 顶部操作行
         top = QHBoxLayout()
-        top.addWidget(QLabel("载入 RGBA → 自动 unpack:"))
+        self._unpack_label = QLabel(tr("载入 RGBA → 自动 unpack:"))
+        top.addWidget(self._unpack_label)
         self.unpack_combo = QComboBox()
         for name in UNPACK_FORMATS:
             self.unpack_combo.addItem(name)
         top.addWidget(self.unpack_combo)
-        self.unpack_btn = QPushButton("加载 RGBA…")
+        self.unpack_btn = QPushButton(tr("加载 RGBA…"))
         top.addWidget(self.unpack_btn)
         top.addSpacing(20)
-        self.save_workspace_btn = QPushButton("保存工程")
+        self.save_workspace_btn = QPushButton(tr("保存工程"))
         top.addWidget(self.save_workspace_btn)
-        self.load_workspace_btn = QPushButton("加载工程")
+        self.load_workspace_btn = QPushButton(tr("加载工程"))
         top.addWidget(self.load_workspace_btn)
         top.addSpacing(20)
         # 导入后先编辑(打开 advanced editor 对原图调色 / 调明暗后,再按 R/G/B/A 拆)
-        self.edit_before_import_check = QCheckBox("导入后先编辑")
+        self.edit_before_import_check = QCheckBox(tr("导入后先编辑"))
         self.edit_before_import_check.setToolTip(
-            "导入图片后,先弹复杂编辑窗口(可做 PS 风格调整 / 混合 / 曲线 / 缩放 pan),\n"
-            "应用后再按 R/G/B/A 位置拆到 4 槽"
+            tr("导入图片后,先弹复杂编辑窗口(可做 PS 风格调整 / 混合 / 曲线 / 缩放 pan),\n应用后再按 R/G/B/A 位置拆到 4 槽")
         )
         top.addWidget(self.edit_before_import_check)
         top.addStretch()
@@ -165,7 +167,7 @@ class ChannelGridWidget(QWidget):
         self.drop_zone.setAcceptDrops(True)
         drop_layout = QVBoxLayout(self.drop_zone)
         drop_layout.setContentsMargins(8, 4, 8, 4)
-        self.drop_label = QLabel("📥  拖一张 RGBA 贴图到这里,或点框体 / 「加载 RGBA…」选图 — 自动按 R/G/B/A 位置展开到 4 槽")
+        self.drop_label = QLabel(tr("📥  拖一张 RGBA 贴图到这里,或点框体 / 「加载 RGBA…」选图 — 自动按 R/G/B/A 位置展开到 4 槽"))
         self.drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.drop_label.setStyleSheet("color:#888;")
         drop_layout.addWidget(self.drop_label)
@@ -173,7 +175,8 @@ class ChannelGridWidget(QWidget):
 
         # RGBA 通道勾选(在 drop zone 下方一行):只把勾选的通道进内存
         rgba_row = QHBoxLayout()
-        rgba_row.addWidget(QLabel("源 RGBA 通道(未勾选=不导入,视为空):"))
+        self._rgba_label = QLabel(tr("源 RGBA 通道(未勾选=不导入,视为空):"))
+        rgba_row.addWidget(self._rgba_label)
         self._rgba_checks: dict[str, QCheckBox] = {}
         for ch in ("R", "G", "B", "A"):
             cb = QCheckBox(ch)
@@ -294,7 +297,7 @@ class ChannelGridWidget(QWidget):
                 # 单个槽加载失败:让上层看到(走 status_message 提示)
                 slot.data = None
                 slot.source_data = None
-                self._last_error = f"槽 {name} 加载失败: {exc}"
+                self._last_error = tr("槽 {} 加载失败: {}").format(name, exc)
             # 缩略图更新
             self.slot_widgets[name].set_thumbnail(slot.data)
         # 打包 → 预览
@@ -430,7 +433,7 @@ class ChannelGridWidget(QWidget):
         self.undo_redo_changed.emit()
     def _on_load_rgba(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "选择 RGBA 源图", "", IMAGE_OPEN_FILTER
+            self, tr("选择 RGBA 源图"), "", IMAGE_OPEN_FILTER
         )
         if not path:
             return
@@ -448,7 +451,7 @@ class ChannelGridWidget(QWidget):
         try:
             arr = load_image(path).copy()
         except Exception as exc:  # noqa: BLE001
-            self.status_message.emit("error", f"读图失败 ({path.name}): {exc}")
+            self.status_message.emit("error", tr("读图失败 ({}): {}").format(path.name, exc))
             return
         if arr.ndim == 2:
             rgba = np.zeros(arr.shape + (4,), dtype=arr.dtype)
@@ -461,7 +464,7 @@ class ChannelGridWidget(QWidget):
             rgba[..., 3] = full_scale(arr.dtype)
             arr = rgba
         elif arr.shape[-1] != 4:
-            self.status_message.emit("warning", f"通道数 {arr.shape[-1]} 不支持(需要 1/3/4): {path.name}")
+            self.status_message.emit("warning", tr("通道数 {} 不支持(需要 1/3/4): {}").format(arr.shape[-1], path.name))
             return
 
         # RGBA mask:未勾选 → 该通道视为空(置 0)
@@ -473,14 +476,14 @@ class ChannelGridWidget(QWidget):
         was_preedited = False
         if self.edit_before_import_check.isChecked():
             from src.ui.advanced_editor import AdvancedEditorDialog
-            self.status_message.emit("info", f"打开复杂编辑窗口(对 {path.name} 进行预先调整)…")
+            self.status_message.emit("info", tr("打开复杂编辑窗口(对 {} 进行预先调整)…").format(path.name))
             dlg = AdvancedEditorDialog(
                 self,
                 initial=arr,
-                title=f"预先编辑 - {path.name}  (完成后按 R/G/B/A 拆到 4 槽)",
+                title=tr("预先编辑 - {}  (完成后按 R/G/B/A 拆到 4 槽)").format(path.name),
             )
             if dlg.exec() != QDialog.DialogCode.Accepted or dlg.result_data is None:
-                self.status_message.emit("info", "已取消预先编辑,放弃本次导入")
+                self.status_message.emit("info", tr("已取消预先编辑,放弃本次导入"))
                 return
             arr = dlg.result_data
             was_preedited = True
@@ -495,7 +498,7 @@ class ChannelGridWidget(QWidget):
                 rgba[..., :3] = arr
                 rgba[..., 3] = full_scale(arr.dtype)
                 arr = rgba
-            self.status_message.emit("success", f"预先编辑完成,继续按 R/G/B/A 拆槽")
+            self.status_message.emit("success", tr("预先编辑完成,继续按 R/G/B/A 拆槽"))
 
         fmt_name = self.unpack_combo.currentText()
         sems = UNPACK_FORMATS.get(fmt_name, [Semantic.EMPTY] * 4)
@@ -543,8 +546,8 @@ class ChannelGridWidget(QWidget):
         n_loaded = sum(1 for ch in ("R", "G", "B", "A") if getattr(m, ch).data is not None)
         self.status_message.emit(
             "success",
-            f"已导入 {path.name}（{w}×{h}, {arr.dtype}, {fmt_name} 格式），"
-            f"{n_loaded}/4 槽有数据"
+            tr("已导入 {}（{}×{}, {}, {} 格式），").format(path.name, w, h, arr.dtype, fmt_name)
+            + tr("{}/4 槽有数据").format(n_loaded)
         )
 
     def _on_rgba_toggled(self) -> None:
@@ -559,9 +562,9 @@ class ChannelGridWidget(QWidget):
                 ("B", self._rgba_mask["B"]),
                 ("A", self._rgba_mask["A"]),
             ] if on
-        ) or "(全空)"
+        ) or tr("(全空)")
         self.drop_label.setText(
-            f"✓ 通道 mask: {mask_str}    |    拖一张 RGBA 贴图到这里 / 点框体 / 「加载 RGBA…」选图"
+            tr("✓ 通道 mask: {}    |    拖一张 RGBA 贴图到这里 / 点框体 / 「加载 RGBA…」选图").format(mask_str)
         )
 
     # -- drop zone(中央 RGBA 自动展开) ---------------------------------
@@ -594,7 +597,7 @@ class ChannelGridWidget(QWidget):
         if project_dir is None:
             selected = QFileDialog.getExistingDirectory(
                 self,
-                "选择或新建工程目录（将在其中创建 project.json）",
+                tr("选择或新建工程目录（将在其中创建 project.json）"),
                 str(Path.cwd()),
             )
             if not selected:
@@ -603,14 +606,14 @@ class ChannelGridWidget(QWidget):
         try:
             manifest_path = self.save_workspace_directory(project_dir)
         except Exception as exc:  # noqa: BLE001
-            self.status_message.emit("error", f"保存工程失败: {exc}")
+            self.status_message.emit("error", tr("保存工程失败: {}").format(exc))
             return
-        self.status_message.emit("success", f"工程已保存: {manifest_path}")
+        self.status_message.emit("success", tr("工程已保存: {}").format(manifest_path))
 
     def _on_load_workspace(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "选择工程的 project.json 或旧工作区 JSON",
+            tr("选择工程的 project.json 或旧工作区 JSON"),
             "",
             "Texpipe Project (project.json);;Legacy Workspace (*.json);;All files (*.*)",
         )
@@ -620,11 +623,11 @@ class ChannelGridWidget(QWidget):
             loaded = self.load_workspace_path(Path(path))
         except Exception as exc:  # noqa: BLE001
             self.status_message.emit(
-                "error", f"加载工程失败 ({Path(path).name}): {exc}",
+                "error", tr("加载工程失败 ({}): {}").format(Path(path).name, exc),
             )
             return
-        kind = "旧工作区" if loaded.legacy else "工程"
-        self.status_message.emit("success", f"{kind}已加载: {loaded.manifest_path}")
+        kind = tr("旧工作区") if loaded.legacy else tr("工程")
+        self.status_message.emit("success", tr("{}已加载: {}").format(kind, loaded.manifest_path))
 
     def save_workspace_directory(self, project_dir: Path) -> Path:
         """保存到工程目录；拆出公共方法便于自动保存和测试复用。"""
@@ -653,8 +656,8 @@ class ChannelGridWidget(QWidget):
         ):
             answer = QMessageBox.question(
                 self,
-                "发现自动恢复数据",
-                "检测到比正式保存更新的操作数据，是否恢复？",
+                tr("发现自动恢复数据"),
+                tr("检测到比正式保存更新的操作数据，是否恢复？"),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.Yes,
             )
@@ -671,7 +674,7 @@ class ChannelGridWidget(QWidget):
         self.spec_changed.emit()
         if recovered:
             self.status_message.emit(
-                "warning", "已恢复上次未正式保存的操作数据",
+                "warning", tr("已恢复上次未正式保存的操作数据"),
             )
         return loaded
 
@@ -688,7 +691,7 @@ class ChannelGridWidget(QWidget):
                 clean=False,
             )
         except Exception as exc:  # noqa: BLE001
-            self.status_message.emit("warning", f"自动保存失败: {exc}")
+            self.status_message.emit("warning", tr("自动保存失败: {}").format(exc))
 
     def flush_pending_autosave(self) -> None:
         """应用关闭前同步写完尚在 debounce 等待中的恢复数据。"""
@@ -704,8 +707,31 @@ class ChannelGridWidget(QWidget):
         self._on_rebuild()
         # 若仍有空槽,允许(将填 255);但若全空就报错
         if self._map.all_empty():
-            raise ValueError("4 个槽全空,无数据可导出")
+            raise ValueError(tr("4 个槽全空,无数据可导出"))
         save_map_rgba(self._map, path)
+
+    # -- 语言切换 -------------------------------------------------------
+    def retranslate(self) -> None:
+        self._unpack_label.setText(tr("载入 RGBA → 自动 unpack:"))
+        self.unpack_btn.setText(tr("加载 RGBA…"))
+        self.save_workspace_btn.setText(tr("保存工程"))
+        self.load_workspace_btn.setText(tr("加载工程"))
+        self.edit_before_import_check.setText(tr("导入后先编辑"))
+        self.edit_before_import_check.setToolTip(
+            tr("导入图片后,先弹复杂编辑窗口(可做 PS 风格调整 / 混合 / 曲线 / 缩放 pan),\n应用后再按 R/G/B/A 位置拆到 4 槽")
+        )
+        self._rgba_label.setText(tr("源 RGBA 通道(未勾选=不导入,视为空):"))
+        # drop label:全选时是默认提示,否则显示当前 mask
+        if all(self._rgba_mask.get(ch, True) for ch in ("R", "G", "B", "A")):
+            self.drop_label.setText(
+                tr("📥  拖一张 RGBA 贴图到这里,或点框体 / 「加载 RGBA…」选图 — 自动按 R/G/B/A 位置展开到 4 槽")
+            )
+        else:
+            self._on_rgba_toggled()
+        for sw in self.slot_widgets.values():
+            slot_retranslate = getattr(sw, "retranslate", None)
+            if callable(slot_retranslate):
+                slot_retranslate()
 
     # -- 直接访问(给 transcode panel 复用) ------------------------------
     def current_spec(self) -> OutputSpec:

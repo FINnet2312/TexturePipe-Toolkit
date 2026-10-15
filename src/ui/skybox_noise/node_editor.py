@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.file_cache import FileCache
+from src.ui.i18n import tr
 from .node_graph import (
     GraphEvaluator, NodeGraph, NodeGraphError, PORT_COORD, PORT_FIELD,
 )
@@ -129,7 +130,7 @@ class _NodeItem(QGraphicsItem):
         painter.setPen(QColor(0xee, 0xee, 0xee))
         painter.drawText(QRectF(8, 4, self._w - 16, self._title_h - 8),
                          Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                         self.node_def.label)
+                         tr(self.node_def.label))
         # 端口名
         painter.setPen(QColor(0xbb, 0xbb, 0xbb))
         for child in self.childItems():
@@ -138,11 +139,11 @@ class _NodeItem(QGraphicsItem):
                 if child.is_input:
                     painter.drawText(QRectF(14, y - 10, 120, 20),
                                      Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft,
-                                     child.port.name)
+                                     tr(child.port.name))
                 else:
                     painter.drawText(QRectF(self._w - 134, y - 10, 120, 20),
                                      Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
-                                     child.port.name)
+                                     tr(child.port.name))
 
     def itemChange(self, change, value):
         if (change == QGraphicsItem.GraphicsItemChange.ItemPositionHasChanged
@@ -273,7 +274,7 @@ class NodeEditorDialog(QDialog):
 
     def __init__(self, graph: NodeGraph, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("节点图编辑器 — 自定义噪声")
+        self.setWindowTitle(tr("节点图编辑器 — 自定义噪声"))
         self.resize(1100, 720)
         self.graph = graph
         self._undo: list[dict] = []
@@ -307,10 +308,10 @@ class NodeEditorDialog(QDialog):
             ("🎯 自动整理", self.auto_layout),
             ("👁 预览", self._refresh_preview),
         ]:
-            act = tb.addAction(text, slot)
-        self._undo_act = tb.addAction("↩ 撤销", self.undo)
-        self._redo_act = tb.addAction("↪ 重做", self.redo)
-        self.chk_auto = QCheckBox("自动预览")
+            act = tb.addAction(tr(text), slot)
+        self._undo_act = tb.addAction(tr("↩ 撤销"), self.undo)
+        self._redo_act = tb.addAction(tr("↪ 重做"), self.redo)
+        self.chk_auto = QCheckBox(tr("自动预览"))
         self.chk_auto.setChecked(True)
         tb.addWidget(self.chk_auto)
         root.addWidget(tb)
@@ -324,15 +325,15 @@ class NodeEditorDialog(QDialog):
         for cat in NODE_CATEGORIES:
             if cat not in NODES_BY_CATEGORY or not NODES_BY_CATEGORY[cat]:
                 continue
-            head = QListWidgetItem(f"— {cat} —")
+            head = QListWidgetItem(f"— {tr(cat)} —")
             head.setFlags(Qt.ItemFlag.NoItemFlags)
             head.setForeground(QColor(0x88, 0x88, 0x88))
             self.list_lib.addItem(head)
             for tid in NODES_BY_CATEGORY[cat]:
                 nd = get_node_def(tid)
-                item = QListWidgetItem(nd.label)
+                item = QListWidgetItem(tr(nd.label))
                 item.setData(Qt.ItemDataRole.UserRole, tid)
-                item.setToolTip(nd.hint)
+                item.setToolTip(tr(nd.hint))
                 self.list_lib.addItem(item)
         self.list_lib.itemDoubleClicked.connect(self._on_lib_double_click)
         split.addWidget(self.list_lib)
@@ -351,7 +352,7 @@ class NodeEditorDialog(QDialog):
         panel.setMaximumWidth(360)
         pv = QVBoxLayout(panel)
         pv.setContentsMargins(8, 8, 8, 8)
-        self._props_title = QLabel("未选中节点")
+        self._props_title = QLabel(tr("未选中节点"))
         self._props_title.setStyleSheet("font-weight:bold;")
         pv.addWidget(self._props_title)
         self._props_scroll = QScrollArea()
@@ -362,15 +363,15 @@ class NodeEditorDialog(QDialog):
         self._props_scroll.setWidget(self._form_host)
         pv.addWidget(self._props_scroll, 1)
 
-        pv.addWidget(QLabel("噪声预览:"))
-        self._preview_lbl = ImageLabel("节点图预览")
+        pv.addWidget(QLabel(tr("噪声预览:")))
+        self._preview_lbl = ImageLabel(tr("节点图预览"))
         self._preview_lbl.setMinimumHeight(180)
         pv.addWidget(self._preview_lbl, 0)
         split.addWidget(panel)
         split.setSizes([210, 560, 300])
         root.addWidget(split, 1)
 
-        self._status_lbl = QLabel("就绪")
+        self._status_lbl = QLabel(tr("就绪"))
         self._status_lbl.setStyleSheet("color:#888; padding:2px 6px;")
         root.addWidget(self._status_lbl)
 
@@ -439,12 +440,12 @@ class NodeEditorDialog(QDialog):
             self.graph.connect(out_node.id, out_port.idx,
                                in_node.id, in_port.idx, NODE_REGISTRY)
         except NodeGraphError as e:
-            self._status(f"连接失败: {e}")
+            self._status(tr("连接失败: {}").format(e))
             return
         self._refresh_edges()
         self._push_state()
         self._mark_dirty()
-        self._status(f"已连接 {out_node.type_id} → {in_node.type_id}")
+        self._status(tr("已连接 {} → {}").format(out_node.type_id, in_node.type_id))
 
     def disconnect_edge(self, edge: _EdgeItem):
         out_node = edge.out_port.node_item.node
@@ -573,13 +574,13 @@ class NodeEditorDialog(QDialog):
                 w.deleteLater()
         if (not self._selected_node_id
                 or self._selected_node_id not in self.graph.nodes):
-            self._props_title.setText("未选中节点 (在画布上点选)")
+            self._props_title.setText(tr("未选中节点 (在画布上点选)"))
             return
         node = self.graph.nodes[self._selected_node_id]
         nd = get_node_def(node.type_id)
-        self._props_title.setText(f"{nd.label}")
+        self._props_title.setText(tr(nd.label))
         if nd.hint:
-            hint = QLabel(nd.hint)
+            hint = QLabel(tr(nd.hint))
             hint.setWordWrap(True)
             hint.setStyleSheet("color:#888;")
             self._form_layout.addRow(hint)
@@ -595,36 +596,36 @@ class NodeEditorDialog(QDialog):
             lay.setContentsMargins(0, 0, 0, 0)
             edit = QLineEdit(str(value))
             edit.setReadOnly(True)
-            btn = QPushButton("浏览…")
+            btn = QPushButton(tr("浏览…"))
             def _browse(_=None, k=key, e=edit):
                 path, _ = QFileDialog.getOpenFileName(
-                    self, "选择贴图", "",
-                    "图像 (*.png *.jpg *.jpeg *.bmp *.tga *.tif *.tiff *.exr)")
+                    self, tr("选择贴图"), "",
+                    tr("图像 (*.png *.jpg *.jpeg *.bmp *.tga *.tif *.tiff *.exr)"))
                 if path:
                     e.setText(path)
                     self._set_param(node, k, path, commit=True)
             btn.clicked.connect(_browse)
             lay.addWidget(edit, 1)
             lay.addWidget(btn)
-            self._form_layout.addRow(pd.label + ":", row)
+            self._form_layout.addRow(tr(pd.label) + ":", row)
         elif pd.kind == "choice":
             cmb = QComboBox()
             for val, lab in pd.choices:
-                cmb.addItem(lab, val)
+                cmb.addItem(tr(lab), val)
             idx = cmb.findData(value)
             cmb.setCurrentIndex(max(0, idx))
             cmb.currentIndexChanged.connect(
                 lambda _i, k=key: self._set_param(node, k, cmb.currentData(), commit=True))
-            self._form_layout.addRow(pd.label + ":", cmb)
+            self._form_layout.addRow(tr(pd.label) + ":", cmb)
         elif pd.kind == "bool":
-            cb = QCheckBox(pd.label)
+            cb = QCheckBox(tr(pd.label))
             cb.setChecked(bool(value))
             cb.toggled.connect(
                 lambda v, k=key: self._set_param(node, k, v, commit=True))
             self._form_layout.addRow("", cb)
         else:
             slider = ParamSlider(
-                pd.label, pd.min_v, pd.max_v, float(value),
+                tr(pd.label), pd.min_v, pd.max_v, float(value),
                 step=pd.step, decimals=pd.decimals,
                 callback=lambda v, k=key: self._set_param(node, k, v, commit=False),
             )
@@ -641,19 +642,19 @@ class NodeEditorDialog(QDialog):
     # -- 保存 / 加载 -----------------------------------------------------
     def save_graph(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "保存节点图", "custom_noise.json", "节点图 (*.json)")
+            self, tr("保存节点图"), "custom_noise.json", tr("节点图 (*.json)"))
         if not path:
             return
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(self.graph.to_dict(), f, ensure_ascii=False, indent=1)
-            self._status(f"已保存: {path}")
+            self._status(tr("已保存: {}").format(path))
         except OSError as e:
-            self._status(f"保存失败: {e}")
+            self._status(tr("保存失败: {}").format(e))
 
     def load_graph(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "加载节点图", "", "节点图 (*.json)")
+            self, tr("加载节点图"), "", tr("节点图 (*.json)"))
         if not path:
             return
         try:
@@ -662,7 +663,7 @@ class NodeEditorDialog(QDialog):
             g = NodeGraph.from_dict(d, NODE_REGISTRY)
         except (OSError, json.JSONDecodeError, NodeGraphError,
                 TypeError, ValueError, KeyError) as e:
-            self._status(f"加载失败: {e}")
+            self._status(tr("加载失败: {}").format(e))
             return
         self.graph.nodes.clear()
         self.graph.nodes.update(g.nodes)
@@ -673,7 +674,7 @@ class NodeEditorDialog(QDialog):
         self._refresh_props()
         self._push_state()
         self._mark_dirty()
-        self._status(f"已加载: {path}")
+        self._status(tr("已加载: {}").format(path))
 
     # -- 自动整理 --------------------------------------------------------
     def auto_layout(self):
@@ -740,15 +741,15 @@ class NodeEditorDialog(QDialog):
             else:
                 disp = (field - mn) / (mx - mn)
             self._preview_lbl.set_ndarray(
-                disp, f"噪声预览 {field.shape[1]}x{field.shape[0]}",
+                disp, tr("噪声预览 {}x{}").format(field.shape[1], field.shape[0]),
             )
-            self._status(f"预览正常 (范围 {mn:.3f} ~ {mx:.3f})")
+            self._status(tr("预览正常 (范围 {:.3f} ~ {:.3f})").format(mn, mx))
         except NodeGraphError as e:
             self._preview_lbl.set_ndarray(None)
-            self._status(f"预览: {e}")
+            self._status(tr("预览: {}").format(e))
         except Exception as e:  # noqa: BLE001
             self._preview_lbl.set_ndarray(None)
-            self._status(f"预览出错: {e}")
+            self._status(tr("预览出错: {}").format(e))
 
     # -- 其它 ------------------------------------------------------------
     def _status(self, msg: str):

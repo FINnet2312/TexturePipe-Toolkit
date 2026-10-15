@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 from src.core.file_cache import FileCache
 from src.core.pixels import from_normalized
 from src.io.saver import IMAGE_SAVE_FILTER, save_image
+from src.ui.i18n import i18n, tr
 from .compose import render
 from .core import ALL_NOISE, NOISE_CAUSTICS, gen_noise
 from .node_editor import NodeEditorDialog
@@ -90,6 +91,7 @@ class SkyboxNoiseWidget(QWidget):
         self._pending_saves: list[tuple[str, str]] = []
         self.params = dict(self.DEFAULT_PARAMS)
         self._param_widgets: dict[str, ParamSlider] = {}
+        self._param_labels: dict[str, str] = {}
         # 原图 LRU 缓存(天空图大,4 张足够;存 uint8,省内存)
         self._file_cache = FileCache(max_size=4)
         # 整个 Tab 接受拖拽图片
@@ -109,6 +111,8 @@ class SkyboxNoiseWidget(QWidget):
         self._build_ui()
         self._build_statusbar()
 
+        i18n.language_changed.connect(self.retranslate)
+
     # ------------------------------------------------------------------
     # UI
     # ------------------------------------------------------------------
@@ -124,6 +128,7 @@ class SkyboxNoiseWidget(QWidget):
         bar_layout.setContentsMargins(4, 4, 4, 4)
         bar_layout.setSpacing(6)
 
+        self._bar_buttons = []
         for text, slot in [
             ("📂 打开图像", self.open_image),
             ("💾 保存合成图", self.save_composite),
@@ -133,7 +138,8 @@ class SkyboxNoiseWidget(QWidget):
             ("🔄 强制重算", self.regenerate_now),
             ("↺ 恢复默认", self.reset_defaults),
         ]:
-            btn = self._make_button(text, slot)
+            btn = self._make_button(tr(text), slot)
+            self._bar_buttons.append((btn, text))
             bar_layout.addWidget(btn)
         bar_layout.addStretch(1)
         # 缩放 / 性能提示
@@ -143,9 +149,9 @@ class SkyboxNoiseWidget(QWidget):
 
         # 中心 splitter
         splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.lbl_original = ImageLabel("原图")
+        self.lbl_original = ImageLabel(tr("原图"))
         splitter.addWidget(self.lbl_original)
-        self.lbl_composite = ImageLabel("合成预览")
+        self.lbl_composite = ImageLabel(tr("合成预览"))
         splitter.addWidget(self.lbl_composite)
         panel = QScrollArea()
         panel.setWidgetResizable(True)
@@ -175,10 +181,7 @@ class SkyboxNoiseWidget(QWidget):
         root.addWidget(splitter, 1)
 
         # Numba 状态提示
-        from .core import NUMBA_OK
-        self.lbl_perf.setText(
-            f"Numba: {'✓ 加速 25-40x' if NUMBA_OK else '✗ (numpy fallback, 慢)'}",
-        )
+        self._update_perf_label()
 
     def _build_statusbar(self) -> None:
         # 找最近的 QMainWindow 借 statusBar;否则本地用 QLabel 顶替
@@ -192,7 +195,7 @@ class SkyboxNoiseWidget(QWidget):
         status_row = QWidget(self)
         status_layout = QHBoxLayout(status_row)
         status_layout.setContentsMargins(8, 3, 8, 3)
-        self._local_status = QLabel("就绪")
+        self._local_status = QLabel(tr("就绪"))
         self._local_status.setStyleSheet("color:#888;")
         status_layout.addWidget(self._local_status, 1)
         self.progress_bar = QProgressBar(status_row)
@@ -220,36 +223,53 @@ class SkyboxNoiseWidget(QWidget):
         b.clicked.connect(slot)
         return b
 
+    def _update_perf_label(self) -> None:
+        from .core import NUMBA_OK
+        self.lbl_perf.setText(
+            "Numba: " + (
+                tr("✓ 加速 25-40x") if NUMBA_OK
+                else tr("✗ (numpy fallback, 慢)")
+            ),
+        )
+
     # ------------------------------------------------------------------
     # 参数组
     # ------------------------------------------------------------------
     def _add_param(self, layout, key, label, min_v, max_v, value, step=0.01,
                    decimals=3):
-        w = ParamSlider(label, min_v, max_v, value, step, decimals,
+        w = ParamSlider(tr(label), min_v, max_v, value, step, decimals,
                         callback=self._on_param_changed)
         layout.addRow(w)
         self._param_widgets[key] = w
+        self._param_labels[key] = label
         return w
 
     def _build_input_group(self, layout):
-        g = QGroupBox("输入")
+        g = QGroupBox(tr("输入"))
+        self._grp_input = g
         v = QFormLayout(g)
         self.cmb_proj = QComboBox()
         self.cmb_proj.addItems(ALL_PROJECTIONS)
         self.cmb_proj.setCurrentText(self.params["projection"])
         self.cmb_proj.currentTextChanged.connect(self._on_param_changed)
-        v.addRow("投影方式:", self.cmb_proj)
+        self._lbl_proj = QLabel(tr("投影方式:"))
+        v.addRow(self._lbl_proj, self.cmb_proj)
         self.cmb_noise = QComboBox()
-        self.cmb_noise.addItems(list(ALL_NOISE) + [NOISE_CUSTOM])
-        self.cmb_noise.setCurrentText(self.params["noise_type"])
-        self.cmb_noise.currentTextChanged.connect(self._on_param_changed)
-        v.addRow("噪声类型:", self.cmb_noise)
+        # 噪声类型是功能键(core 按名字查表):显示文本翻译,data 存原值
+        for name in list(ALL_NOISE) + [NOISE_CUSTOM]:
+            self.cmb_noise.addItem(tr(name), name)
+        idx = self.cmb_noise.findData(self.params["noise_type"])
+        self.cmb_noise.setCurrentIndex(max(0, idx))
+        self.cmb_noise.currentIndexChanged.connect(self._on_param_changed)
+        self._lbl_noise = QLabel(tr("噪声类型:"))
+        v.addRow(self._lbl_noise, self.cmb_noise)
         self._add_param(v, "seed", "Seed", 0, 9999, self.params["seed"],
                         step=1, decimals=0)
         layout.addWidget(g)
 
     def _build_noise_group(self, layout):
-        g = QGroupBox("噪声参数")
+        g = QGroupBox(tr("噪声参数"))
+        self._grp_noise = g
         v = QFormLayout(g)
         self._add_param(v, "noise_scale", "空间尺度", 0.5, 20.0,
                         self.params["noise_scale"])
@@ -262,7 +282,8 @@ class SkyboxNoiseWidget(QWidget):
         layout.addWidget(g)
 
     def _build_compose_group(self, layout):
-        g = QGroupBox("合成 / Mask")
+        g = QGroupBox(tr("合成 / Mask"))
+        self._grp_compose = g
         v = QFormLayout(g)
         self._add_param(v, "intensity", "合成强度", 0.0, 2.0,
                         self.params["intensity"])
@@ -277,7 +298,8 @@ class SkyboxNoiseWidget(QWidget):
         layout.addWidget(g)
 
     def _build_caustics_group(self, layout):
-        g = QGroupBox("Caustics（仅 Caustics 噪声生效）")
+        g = QGroupBox(tr("Caustics（仅 Caustics 噪声生效）"))
+        self._grp_caustics = g
         v = QFormLayout(g)
         self._add_param(v, "caustic_power", "线条锐度", 0.8, 3.0,
                         self.params["caustic_power"])
@@ -290,7 +312,8 @@ class SkyboxNoiseWidget(QWidget):
         layout.addWidget(g)
 
     def _build_post_group(self, layout):
-        g = QGroupBox("后处理")
+        g = QGroupBox(tr("后处理"))
+        self._grp_post = g
         v = QFormLayout(g)
         self._add_param(v, "tint_blue", "冷色调偏移", -0.3, 0.3,
                         self.params["tint_blue"])
@@ -305,12 +328,12 @@ class SkyboxNoiseWidget(QWidget):
     # ------------------------------------------------------------------
     def _on_param_changed(self, *_):
         self.params["projection"] = self.cmb_proj.currentText()
-        self.params["noise_type"] = self.cmb_noise.currentText()
+        self.params["noise_type"] = self.cmb_noise.currentData()
         for k, w in self._param_widgets.items():
             self.params[k] = w.value()
         self._result_is_full = False
         self.debounce.start()
-        self._status_msg("参数已变 — 400ms 后重算…")
+        self._status_msg(tr("参数已变 — 400ms 后重算…"))
 
     def regenerate_now(self) -> None:
         self.debounce.stop()
@@ -329,7 +352,7 @@ class SkyboxNoiseWidget(QWidget):
             self.worker.cancel()
             self._render_seq += 1
             self._pending_render_full = bool(full)
-            self._status_msg("正在取消旧渲染，随后计算最新参数…")
+            self._status_msg(tr("正在取消旧渲染，随后计算最新参数…"))
             return
         self._pending_render_full = None
         self._render_seq += 1
@@ -337,8 +360,8 @@ class SkyboxNoiseWidget(QWidget):
         scale = 1.0 if full else 0.4
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(True)
-        label = "全分辨率" if full else "预览"
-        self._status_msg(f"渲染中 [{label}]…")
+        label = tr("全分辨率") if full else tr("预览")
+        self._status_msg(tr("渲染中 [{}]…").format(label))
 
         worker = RenderWorker(
             self.src_image,
@@ -385,10 +408,10 @@ class SkyboxNoiseWidget(QWidget):
             self.src_image is not None
             and (sH, sW) == self.src_image.shape[:2]
         )
-        self.lbl_composite.set_ndarray(composite, "合成预览")
+        self.lbl_composite.set_ndarray(composite, tr("合成预览"))
         self.progress_bar.setValue(100)
         QTimer.singleShot(400, lambda: self.progress_bar.setVisible(False))
-        self._status_msg(f"渲染完成 {sW}x{sH}, {dt:.2f}s")
+        self._status_msg(tr("渲染完成 {}x{}, {:.2f}s").format(sW, sH, dt))
         if self._result_is_full and self._pending_saves:
             pending = self._pending_saves
             self._pending_saves = []
@@ -401,8 +424,8 @@ class SkyboxNoiseWidget(QWidget):
         self.progress_bar.setVisible(False)
         if self._pending_saves:
             self._pending_saves = []
-            err = f"{err}（已取消待处理的保存请求）"
-        self._status_msg(f"渲染失败: {err}")
+            err = tr("{}（已取消待处理的保存请求）").format(err)
+        self._status_msg(tr("渲染失败: {}").format(err))
         # 用 QMessageBox 会阻塞 Tab;改用 status_bar,已经显示在状态栏
         # 仍保留一个非模态 log 到 stdout,方便调试
         import logging
@@ -447,8 +470,8 @@ class SkyboxNoiseWidget(QWidget):
     # ------------------------------------------------------------------
     def open_image(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "打开贴图", self.last_save_dir,
-            "图像 (*.png *.jpg *.jpeg *.bmp *.tga *.tif *.tiff *.exr)",
+            self, tr("打开贴图"), self.last_save_dir,
+            tr("图像 (*.png *.jpg *.jpeg *.bmp *.tga *.tif *.tiff *.exr)"),
         )
         if not path:
             return
@@ -459,19 +482,19 @@ class SkyboxNoiseWidget(QWidget):
         try:
             arr = self._load_image_cached(path)
         except Exception as e:  # noqa: BLE001
-            QMessageBox.critical(self, "加载失败", str(e))
+            QMessageBox.critical(self, tr("加载失败"), str(e))
             return
         self.src_image = arr
         self._result_is_full = False
         self.last_save_dir = os.path.dirname(path)
         self.lbl_original.set_ndarray(
-            arr, f"原图 {arr.shape[1]}x{arr.shape[0]}",
+            arr, tr("原图 {}x{}").format(arr.shape[1], arr.shape[0]),
         )
         detected = detect_projection(arr.shape[1], arr.shape[0])
         self.cmb_proj.setCurrentText(detected)
         self.params["projection"] = detected
         self._status_msg(
-            f"已加载: {os.path.basename(path)}  →  投影: {detected}",
+            tr("已加载: {}  →  投影: {}").format(os.path.basename(path), detected),
         )
         self.regenerate_now()
 
@@ -527,30 +550,31 @@ class SkyboxNoiseWidget(QWidget):
     def _on_node_graph_changed(self) -> None:
         """自定义图变化后让主预览失效，并按主窗口节奏重新渲染。"""
         self._result_is_full = False
-        if self.cmb_noise.currentText() == NOISE_CUSTOM:
+        if self.cmb_noise.currentData() == NOISE_CUSTOM:
             self.debounce.start()
-            self._status_msg("节点图已修改 — 400ms 后重算…")
+            self._status_msg(tr("节点图已修改 — 400ms 后重算…"))
 
     # ------------------------------------------------------------------
     # 恢复默认
     # ------------------------------------------------------------------
     def reset_defaults(self) -> None:
         self.cmb_proj.setCurrentText(self.DEFAULT_PARAMS["projection"])
-        self.cmb_noise.setCurrentText(self.DEFAULT_PARAMS["noise_type"])
+        idx = self.cmb_noise.findData(self.DEFAULT_PARAMS["noise_type"])
+        self.cmb_noise.setCurrentIndex(max(0, idx))
         for k, w in self._param_widgets.items():
             w.setValue(self.DEFAULT_PARAMS[k])
         # setValue 会逐次触发 _on_param_changed,最后统一强制重算一次
-        self._status_msg("已恢复默认参数")
+        self._status_msg(tr("已恢复默认参数"))
         self.regenerate_now()
 
     def _save(self, attribute: str, default_name: str) -> None:
         if self.src_image is None:
-            QMessageBox.warning(self, "无数据", "请先生成图像")
+            QMessageBox.warning(self, tr("无数据"), tr("请先生成图像"))
             return
         if self._source_dtype.kind == "f":
             default_name = os.path.splitext(default_name)[0] + ".exr"
         path, _ = QFileDialog.getSaveFileName(
-            self, "保存", os.path.join(self.last_save_dir, default_name),
+            self, tr("保存"), os.path.join(self.last_save_dir, default_name),
             IMAGE_SAVE_FILTER,
         )
         if not path:
@@ -569,7 +593,7 @@ class SkyboxNoiseWidget(QWidget):
                 if request[0] != attribute
             ]
             self._pending_saves.append((attribute, path))
-            self._status_msg("正在生成最新的全分辨率结果，完成后自动保存…")
+            self._status_msg(tr("正在生成最新的全分辨率结果，完成后自动保存…"))
             self.regenerate_now()
             return
         self._write_output(arr, path)
@@ -589,19 +613,19 @@ class SkyboxNoiseWidget(QWidget):
                 )
             elif suffix == ".png":
                 if self._source_dtype.kind == "f":
-                    raise ValueError("浮点/HDR 结果请保存为 EXR 或 TIFF，PNG 会丢失 HDR 范围")
+                    raise ValueError(tr("浮点/HDR 结果请保存为 EXR 或 TIFF，PNG 会丢失 HDR 范围"))
                 output = from_normalized(
                     np.clip(values, 0, 1), self._source_dtype,
                 )
             else:
                 if self._source_dtype != np.dtype(np.uint8):
-                    raise ValueError("当前源图不是 8-bit，请改存 PNG/TIFF/EXR")
+                    raise ValueError(tr("当前源图不是 8-bit，请改存 PNG/TIFF/EXR"))
                 output = from_normalized(np.clip(values, 0, 1), np.uint8)
             save_image(output, path)
             self.last_save_dir = os.path.dirname(path)
-            self._status_msg(f"已保存: {path}")
+            self._status_msg(tr("已保存: {}").format(path))
         except Exception as e:  # noqa: BLE001
-            QMessageBox.critical(self, "保存失败", str(e))
+            QMessageBox.critical(self, tr("保存失败"), str(e))
 
     def save_composite(self) -> None:
         self._save("composite", "composite.png")
@@ -611,6 +635,38 @@ class SkyboxNoiseWidget(QWidget):
 
     def save_normal(self) -> None:
         self._save("normal_rgb", "normal.png")
+
+    # ------------------------------------------------------------------
+    # 语言切换
+    # ------------------------------------------------------------------
+    def retranslate(self) -> None:
+        """语言切换:刷新工具条按钮、分组标题、下拉与滑杆标签。"""
+        for btn, zh in self._bar_buttons:
+            btn.setText(tr(zh))
+        self._grp_input.setTitle(tr("输入"))
+        self._grp_noise.setTitle(tr("噪声参数"))
+        self._grp_compose.setTitle(tr("合成 / Mask"))
+        self._grp_caustics.setTitle(tr("Caustics（仅 Caustics 噪声生效）"))
+        self._grp_post.setTitle(tr("后处理"))
+        self._lbl_proj.setText(tr("投影方式:"))
+        self._lbl_noise.setText(tr("噪声类型:"))
+        # 噪声类型下拉:显示文本随语言变化,data 保持功能键不变
+        current = self.cmb_noise.currentData()
+        self.cmb_noise.blockSignals(True)
+        self.cmb_noise.clear()
+        for name in list(ALL_NOISE) + [NOISE_CUSTOM]:
+            self.cmb_noise.addItem(tr(name), name)
+        idx = self.cmb_noise.findData(current)
+        self.cmb_noise.setCurrentIndex(max(0, idx))
+        self.cmb_noise.blockSignals(False)
+        # 滑杆标签
+        for key, w in self._param_widgets.items():
+            zh = self._param_labels.get(key)
+            if zh:
+                w.set_label(tr(zh))
+        self.lbl_original.set_title(tr("原图"))
+        self.lbl_composite.set_title(tr("合成预览"))
+        self._update_perf_label()
 
 
 # 入口:plugin 加载用

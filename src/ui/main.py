@@ -167,6 +167,9 @@ def main(argv: list[str] | None = None) -> int:
     application_args = [sys.argv[0], *qt_args]
     app = QApplication.instance() or QApplication(application_args)
 
+    from src.ui import i18n
+    i18n.init()
+
     if args.smoke_test:
         return _run_smoke(app)
 

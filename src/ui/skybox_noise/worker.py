@@ -18,6 +18,7 @@ import numpy as np
 from PySide6.QtCore import QThread, Signal
 
 from src.core.file_cache import FileCache
+from src.ui.i18n import tr
 from .compose import render
 from .compose import preview_size, resize_preview
 from .image_io import load_rgb_float
@@ -84,7 +85,7 @@ class RenderWorker(QThread):
     def run(self) -> None:
         try:
             t0 = time.time()
-            self._emit(5, "准备中…")
+            self._emit(5, tr("准备中…"))
             H, W = self.src.shape[:2]
             if self.scale < 1.0:
                 sH, sW = preview_size(H, W, self.scale)
@@ -95,7 +96,7 @@ class RenderWorker(QThread):
             if self._cancel:
                 return
 
-            self._emit(15, "UV 网格…")
+            self._emit(15, tr("UV 网格…"))
             u = np.linspace(0, 1, sW, endpoint=False)
             v = np.linspace(0, 1, sH, endpoint=False)
             U, V = np.meshgrid(u, v)
@@ -103,7 +104,7 @@ class RenderWorker(QThread):
             if self._cancel:
                 return
 
-            self._emit(25, f"生成 {self.noise_type} 噪声…")
+            self._emit(25, tr("生成 {} 噪声…").format(self.noise_type))
             if self.graph_dict:
                 # 节点图自定义噪声
                 caustic = self._eval_graph(sx, sy, sz, U, V)
@@ -114,7 +115,7 @@ class RenderWorker(QThread):
             if self._cancel:
                 return
 
-            self._emit(55, "Mask / 渐变…")
+            self._emit(55, tr("Mask / 渐变…"))
             tt = np.clip(
                 (V - self.p["mask_top"])
                 / max(self.p["mask_bottom"] - self.p["mask_top"], 1e-6),
@@ -126,7 +127,7 @@ class RenderWorker(QThread):
             if self._cancel:
                 return
 
-            self._emit(70, "合成…")
+            self._emit(70, tr("合成…"))
             slope_mod = np.clip(
                 1.0 - self.p["normal_strength"]
                 * (np.abs(grad_x) + np.abs(grad_y)) * 6.0,
@@ -138,7 +139,7 @@ class RenderWorker(QThread):
             if self._cancel:
                 return
 
-            self._emit(88, "法线贴图…")
+            self._emit(88, tr("法线贴图…"))
             nx = np.clip(-grad_x * 6.0, -50.0, 50.0)
             ny = np.clip(-grad_y * 6.0, -50.0, 50.0)
             nz = np.ones_like(nx)
@@ -152,7 +153,7 @@ class RenderWorker(QThread):
                 return
 
             dt = time.time() - t0
-            self._emit(100, f"完成 ({dt:.2f}s)")
+            self._emit(100, tr("完成 ({:.2f}s)").format(dt))
             self.finished_ok.emit(
                 composite, mask_gray, np.clip(normal, 0, 1),
                 caustic, mask, sH, sW, dt,

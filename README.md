@@ -26,6 +26,8 @@
 
 GUI 主窗口约 1500×820,**顶部 Tab:`编辑模式` / `互转模式` / `Skybox Noise`(插件)**。默认进编辑模式。
 
+**界面语言**:菜单栏 `语言(&L)` 可在 **中文 / English** 之间一键切换,选择会被记住,下次启动自动生效。覆盖编辑模式、互转模式、复杂编辑器、Skybox Noise 插件及节点图编辑器的全部界面文案(命令行输出保持中文)。
+
 > **首次使用**:`texpipe.bat` 会自动跑 `pip install -r requirements.txt`,装好后每次都秒开。需要 Python 3.10+。如果自动装失败,手动跑 `pip install numpy Pillow PySide6 pypng tifffile OpenEXR` 也行。
 >
 > **没装 Python?** 启动器会自动检测并给出安装引导(含 `winget install Python.Python.3.12` 一键命令 / python.org / Microsoft Store 三种方式),不会再一闪而过或报莫名错误。装了但版本低于 3.10 也会明确提示。

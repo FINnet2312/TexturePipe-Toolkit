@@ -29,6 +29,7 @@ from src.core.pixels import full_scale, to_display_u8
 from src.core.resize import resize_to
 from src.core.transform import normalize_angle, rotate_image
 from src.io.loader import IMAGE_OPEN_FILTER, SUPPORTED_IMAGE_EXTS, load_image
+from src.ui.i18n import tr
 
 from .advanced_editor_components.adjustments import (
     AdjustmentSettings,
@@ -75,7 +76,7 @@ class AdvancedEditorDialog(QDialog):
             if source.ndim == 3:
                 if source.shape[-1] not in (3, 4):
                     raise ValueError(
-                        f"复杂编辑只支持灰度/RGB/RGBA，收到 {source.shape}",
+                        tr("复杂编辑只支持灰度/RGB/RGBA，收到 {}").format(source.shape),
                     )
                 if source.shape[-1] == 4:
                     self._preserved_alpha = source[..., 3].copy()
@@ -86,7 +87,7 @@ class AdvancedEditorDialog(QDialog):
                 self._is_color = False
             else:
                 raise ValueError(
-                    f"复杂编辑只支持 H×W 或 H×W×3/4，收到 {source.shape}",
+                    tr("复杂编辑只支持 H×W 或 H×W×3/4，收到 {}").format(source.shape),
                 )
 
         self._brightness = 0
@@ -148,10 +149,10 @@ class AdvancedEditorDialog(QDialog):
         self._preview_splitter = QSplitter(Qt.Orientation.Horizontal)
         self._configure_splitter(self._preview_splitter, vertical=False)
         self._preview_splitter.addWidget(
-            self._build_preview_box("原图（应用前）", self._original, "orig"),
+            self._build_preview_box(tr("原图（应用前）"), self._original, "orig"),
         )
         self._preview_splitter.addWidget(
-            self._build_preview_box("结果（应用后）", self._original, "result"),
+            self._build_preview_box(tr("结果（应用后）"), self._original, "result"),
         )
         self._preview_splitter.setSizes([600, 600])
         self._main_splitter.addWidget(self._preview_splitter)
@@ -159,22 +160,22 @@ class AdvancedEditorDialog(QDialog):
         root.addWidget(self._main_splitter, 1)
 
         buttons = QHBoxLayout()
-        reset_button = QPushButton("重置所有参数")
+        reset_button = QPushButton(tr("重置所有参数"))
         reset_button.clicked.connect(self._on_reset)
         buttons.addWidget(reset_button)
-        fit_button = QPushButton("适应窗口")
+        fit_button = QPushButton(tr("适应窗口"))
         fit_button.clicked.connect(self._fit_previews)
         buttons.addWidget(fit_button)
         buttons.addStretch()
-        self._zoom_label = QLabel("缩放: 100% / 100%")
+        self._zoom_label = QLabel(tr("缩放: 100% / 100%"))
         self._zoom_label.setStyleSheet("color:#888;")
         buttons.addWidget(self._zoom_label)
         buttons.addStretch()
-        apply_button = QPushButton("应用并关闭")
+        apply_button = QPushButton(tr("应用并关闭"))
         apply_button.setDefault(True)
         apply_button.clicked.connect(self.accept)
         buttons.addWidget(apply_button)
-        cancel_button = QPushButton("取消")
+        cancel_button = QPushButton(tr("取消"))
         cancel_button.clicked.connect(self.reject)
         buttons.addWidget(cancel_button)
         root.addLayout(buttons)
@@ -192,9 +193,9 @@ class AdvancedEditorDialog(QDialog):
         )
 
     def _build_blend_panel(self) -> QWidget:
-        box = QGroupBox("混合（原图 + 第二张图）")
+        box = QGroupBox(tr("混合（原图 + 第二张图）"))
         layout = QVBoxLayout(box)
-        layout.addWidget(QLabel("第二张图（支持拖拽 / 点击 / 浏览 / 编辑）:"))
+        layout.addWidget(QLabel(tr("第二张图（支持拖拽 / 点击 / 浏览 / 编辑）:")))
 
         self._second_drop = ClickableDropFrame()
         self._second_drop.setObjectName("BlendSecondDrop")
@@ -210,7 +211,7 @@ class AdvancedEditorDialog(QDialog):
         self._second_drop._on_click = self._on_pick_second
         drop_layout = QVBoxLayout(self._second_drop)
         drop_layout.setContentsMargins(8, 4, 8, 4)
-        self._second_drop_label = QLabel("📥  拖入 / 点击框体 / 用「浏览」选文件")
+        self._second_drop_label = QLabel(tr("📥  拖入 / 点击框体 / 用「浏览」选文件"))
         self._second_drop_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._second_drop_label.setStyleSheet("color:#888;")
         drop_layout.addWidget(self._second_drop_label)
@@ -218,11 +219,11 @@ class AdvancedEditorDialog(QDialog):
 
         self._second_edit = QLineEdit()
         self._second_edit.setReadOnly(True)
-        self._second_edit.setPlaceholderText("（空 = 不混合）")
+        self._second_edit.setPlaceholderText(tr("（空 = 不混合）"))
         layout.addWidget(self._second_edit)
 
         rgba_row = QHBoxLayout()
-        rgba_row.addWidget(QLabel("源 RGBA 通道:"))
+        rgba_row.addWidget(QLabel(tr("源 RGBA 通道:")))
         self._second_rgba_checks: dict[str, QCheckBox] = {}
         for channel in "RGBA":
             checkbox = QCheckBox(channel)
@@ -234,10 +235,10 @@ class AdvancedEditorDialog(QDialog):
         layout.addLayout(rgba_row)
 
         mapping_row = QHBoxLayout()
-        mapping_row.addWidget(QLabel("尺寸映射:"))
+        mapping_row.addWidget(QLabel(tr("尺寸映射:")))
         self._second_mapping_combo = QComboBox()
         for mode_id, label in SECOND_IMAGE_MAPPINGS:
-            self._second_mapping_combo.addItem(label, mode_id)
+            self._second_mapping_combo.addItem(tr(label), mode_id)
         self._second_mapping_combo.currentIndexChanged.connect(
             self._on_second_transform_changed,
         )
@@ -245,7 +246,7 @@ class AdvancedEditorDialog(QDialog):
         layout.addLayout(mapping_row)
 
         scale_row = QHBoxLayout()
-        scale_row.addWidget(QLabel("拉伸/缩放:"))
+        scale_row.addWidget(QLabel(tr("拉伸/缩放:")))
         self._second_scale_x_spin = self._make_percent_spin(" X")
         self._second_scale_y_spin = self._make_percent_spin(" Y")
         self._second_scale_x_spin.valueChanged.connect(
@@ -256,7 +257,7 @@ class AdvancedEditorDialog(QDialog):
         )
         scale_row.addWidget(self._second_scale_x_spin)
         scale_row.addWidget(self._second_scale_y_spin)
-        self._second_scale_lock = QCheckBox("锁定")
+        self._second_scale_lock = QCheckBox(tr("锁定"))
         self._second_scale_lock.setChecked(True)
         self._second_scale_lock.toggled.connect(
             self._on_second_scale_lock_toggled,
@@ -265,7 +266,7 @@ class AdvancedEditorDialog(QDialog):
         layout.addLayout(scale_row)
 
         offset_row = QHBoxLayout()
-        offset_row.addWidget(QLabel("偏移:"))
+        offset_row.addWidget(QLabel(tr("偏移:")))
         self._second_offset_x_spin = self._make_offset_spin(" X")
         self._second_offset_y_spin = self._make_offset_spin(" Y")
         self._second_offset_x_spin.valueChanged.connect(
@@ -279,23 +280,23 @@ class AdvancedEditorDialog(QDialog):
         layout.addLayout(offset_row)
 
         action_row = QHBoxLayout()
-        pick_button = QPushButton("浏览…")
+        pick_button = QPushButton(tr("浏览…"))
         pick_button.clicked.connect(self._on_pick_second)
         action_row.addWidget(pick_button)
-        self._edit_second_btn = QPushButton("✎ 编辑这张")
+        self._edit_second_btn = QPushButton(tr("✎ 编辑这张"))
         self._edit_second_btn.clicked.connect(self._on_edit_second)
         self._edit_second_btn.setEnabled(False)
         action_row.addWidget(self._edit_second_btn)
-        clear_button = QPushButton("清空")
+        clear_button = QPushButton(tr("清空"))
         clear_button.clicked.connect(self._on_clear_second)
         action_row.addWidget(clear_button)
         action_row.addStretch()
         layout.addLayout(action_row)
 
-        layout.addWidget(QLabel("混合模式:"))
+        layout.addWidget(QLabel(tr("混合模式:")))
         self._blend_combo = QComboBox()
         for mode_id, label, _function in BLEND_MODES:
-            self._blend_combo.addItem(label, mode_id)
+            self._blend_combo.addItem(tr(label), mode_id)
         self._blend_combo.currentIndexChanged.connect(self._on_blend_changed)
         layout.addWidget(self._blend_combo)
         layout.addStretch()
@@ -318,10 +319,10 @@ class AdvancedEditorDialog(QDialog):
         return spin
 
     def _build_color_panel(self) -> QWidget:
-        box = QGroupBox("调整（PS 风格）")
+        box = QGroupBox(tr("调整（PS 风格）"))
         layout = QVBoxLayout(box)
 
-        layout.addWidget(QLabel("旋转（逆时针，自动扩展画布）:"))
+        layout.addWidget(QLabel(tr("旋转（逆时针，自动扩展画布）:")))
         rotation_row = QHBoxLayout()
         self._rotation_spin = QDoubleSpinBox()
         self._rotation_spin.setRange(-180, 180)
@@ -339,42 +340,42 @@ class AdvancedEditorDialog(QDialog):
         layout.addLayout(rotation_row)
 
         self._bright_slider, self._bright_label = self._add_slider(
-            layout, "亮度（-100 ~ +100）:", -100, 100, 0,
+            layout, tr("亮度（-100 ~ +100）:"), -100, 100, 0,
             self._on_brightness,
         )
         self._contrast_slider, self._contrast_label = self._add_slider(
-            layout, "对比（0.0 ~ 2.0）:", 0, 200, 100,
+            layout, tr("对比（0.0 ~ 2.0）:"), 0, 200, 100,
             self._on_contrast,
         )
         self._exposure_slider, self._exposure_label = self._add_slider(
-            layout, "曝光（-2.0 ~ +2.0 EV）:", -200, 200, 0,
+            layout, tr("曝光（-2.0 ~ +2.0 EV）:"), -200, 200, 0,
             self._on_exposure,
         )
         self._shadows_slider, self._shadows_label = self._add_slider(
-            layout, "阴影（-100 ~ +100）:", -100, 100, 0,
+            layout, tr("阴影（-100 ~ +100）:"), -100, 100, 0,
             self._on_shadows,
         )
         self._highlights_slider, self._highlights_label = self._add_slider(
-            layout, "高光（-100 ~ +100）:", -100, 100, 0,
+            layout, tr("高光（-100 ~ +100）:"), -100, 100, 0,
             self._on_highlights,
         )
         self._gamma_slider, self._gamma_label = self._add_slider(
-            layout, "伽马（0.1 ~ 3.0）:", 10, 300, 100,
+            layout, tr("伽马（0.1 ~ 3.0）:"), 10, 300, 100,
             self._on_gamma,
         )
         self._saturation_slider, self._saturation_label = self._add_slider(
-            layout, "饱和度（0.0 ~ 2.0；灰度无效）:", 0, 200, 100,
+            layout, tr("饱和度（0.0 ~ 2.0；灰度无效）:"), 0, 200, 100,
             self._on_saturation,
         )
         self._threshold_slider, self._threshold_label = self._add_slider(
-            layout, "阈值（0-255，-1=关）:", -1, 255, -1,
+            layout, tr("阈值（0-255，-1=关）:"), -1, 255, -1,
             self._on_threshold,
         )
         self._posterize_slider, self._posterize_label = self._add_slider(
-            layout, "色调分离（2-256 级，256=关）:", 2, 256, 256,
+            layout, tr("色调分离（2-256 级，256=关）:"), 2, 256, 256,
             self._on_posterize,
         )
-        self._invert_check = QCheckBox("反相（Invert）")
+        self._invert_check = QCheckBox(tr("反相（Invert）"))
         self._invert_check.toggled.connect(self._on_invert)
         layout.addWidget(self._invert_check)
         layout.addStretch()
@@ -401,10 +402,10 @@ class AdvancedEditorDialog(QDialog):
         return slider, label
 
     def _build_curve_panel(self) -> QWidget:
-        box = QGroupBox("曲线（贝塞尔控制点）")
+        box = QGroupBox(tr("曲线（贝塞尔控制点）"))
         layout = QVBoxLayout(box)
         layout.addWidget(
-            QLabel("点曲线附近空白处 = 加点；双击控制点 = 删除"),
+            QLabel(tr("点曲线附近空白处 = 加点；双击控制点 = 删除")),
         )
         self._curve = CurveWidget()
         self._curve.lut_changed.connect(self._render_preview)
@@ -417,12 +418,12 @@ class AdvancedEditorDialog(QDialog):
             ("高对比", [(0, 0), (64, 32), (192, 224), (255, 255)]),
             ("反转", [(0, 255), (255, 0)]),
         ):
-            button = QPushButton(label)
+            button = QPushButton(tr(label))
             button.clicked.connect(
                 lambda _checked=False, values=points: self._curve.set_points(values),
             )
             presets.addWidget(button)
-        reset_button = QPushButton("重置曲线")
+        reset_button = QPushButton(tr("重置曲线"))
         reset_button.clicked.connect(self._curve.reset)
         presets.addWidget(reset_button)
         layout.addLayout(presets)
@@ -591,8 +592,8 @@ class AdvancedEditorDialog(QDialog):
             else 100
         )
         self._zoom_label.setText(
-            f"缩放: 原图 {original_zoom:.0f}% / 结果 {result_zoom:.0f}%"
-            "（滚轮缩放 / 右键平移 / 双击重置）",
+            tr("缩放: 原图 {:.0f}% / 结果 {:.0f}%").format(original_zoom, result_zoom)
+            + tr("（滚轮缩放 / 右键平移 / 双击重置）"),
         )
 
     def showEvent(self, event):  # noqa: N802
@@ -606,7 +607,7 @@ class AdvancedEditorDialog(QDialog):
     # ------------------------------------------------------------------
     def _on_pick_second(self) -> None:
         path, _selected_filter = QFileDialog.getOpenFileName(
-            self, "选择第二张图", "", IMAGE_OPEN_FILTER,
+            self, tr("选择第二张图"), "", IMAGE_OPEN_FILTER,
         )
         if path:
             self._load_second_image(Path(path))
@@ -615,7 +616,7 @@ class AdvancedEditorDialog(QDialog):
         try:
             array = load_image(path)
         except Exception as exc:  # noqa: BLE001
-            self.status_message.emit("error", f"第二张图加载失败: {exc}")
+            self.status_message.emit("error", tr("第二张图加载失败: {}").format(exc))
             return
         mask = self._second_rgba_mask
         if array.ndim == 3:
@@ -650,8 +651,10 @@ class AdvancedEditorDialog(QDialog):
             channel for channel in "RGBA" if mask[channel]
         )
         self._second_drop_label.setText(
-            f"✓ {path.name}（通道:{selected_channels} / "
-            f"{self._second_mapping_combo.currentText()}）",
+            tr("✓ {}（通道:{} / {}）").format(
+                path.name, selected_channels,
+                self._second_mapping_combo.currentText(),
+            ),
         )
         self._edit_second_btn.setEnabled(True)
         self._render_preview()
@@ -741,7 +744,7 @@ class AdvancedEditorDialog(QDialog):
         self._second_data = None
         self._second_edit.clear()
         self._second_drop_label.setText(
-            "📥  拖入 / 点击框体 / 用「浏览」选文件",
+            tr("📥  拖入 / 点击框体 / 用「浏览」选文件"),
         )
         self._edit_second_btn.setEnabled(False)
         self._render_preview()
@@ -752,14 +755,14 @@ class AdvancedEditorDialog(QDialog):
         nested = AdvancedEditorDialog(
             self,
             initial=self._second_source_data,
-            title="复杂编辑 - 第二张图（可再嵌套）",
+            title=tr("复杂编辑 - 第二张图（可再嵌套）"),
         )
         if (
             nested.exec() == QDialog.DialogCode.Accepted
             and nested.result_data is not None
         ):
             self._second_source_data = nested.result_data.copy()
-            self._second_drop_label.setText("✓（已嵌套编辑）")
+            self._second_drop_label.setText(tr("✓（已嵌套编辑）"))
             self._remap_second_image()
 
     def _second_drag_enter(self, event: QDragEnterEvent) -> None:
@@ -838,13 +841,13 @@ class AdvancedEditorDialog(QDialog):
 
     def _on_threshold(self, value: int) -> None:
         self._threshold = value
-        self._threshold_label.setText("关" if value < 0 else str(value))
+        self._threshold_label.setText(tr("关") if value < 0 else str(value))
         self._render_preview()
 
     def _on_posterize(self, value: int) -> None:
         self._posterize = value
         self._posterize_label.setText(
-            "关" if value >= 256 else f"{value} 级",
+            tr("关") if value >= 256 else tr("{} 级").format(value),
         )
         self._render_preview()
 
@@ -864,8 +867,8 @@ class AdvancedEditorDialog(QDialog):
         self._highlights_label.setText(str(self._highlights))
         self._gamma_label.setText(f"{self._gamma:.2f}")
         self._saturation_label.setText(f"{self._saturation:.2f}")
-        self._threshold_label.setText("关")
-        self._posterize_label.setText("关")
+        self._threshold_label.setText(tr("关"))
+        self._posterize_label.setText(tr("关"))
 
     def _on_reset(self) -> None:
         self._rotation_spin.setValue(0)

@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
 from src.core.map import ChannelMap
 from src.core.pixels import to_display_u8
 from src.core.slot import Semantic, SourceType
+from src.ui.i18n import i18n, tr
 
 _PREVIEW_MAX = 256  # 缩略图最大边
 
@@ -121,8 +122,8 @@ class _ZoomableImageView(QWidget):
         self._lbl.setPixmap(scaled)
         self._lbl.resize(new_w, new_h)
         self._zoom_lbl.setText(
-            f"缩放: {self._zoom * 100:.0f}%   尺寸: {w}×{h}   "
-            f"(滚轮缩放 / 右键 pan / 双击重置)"
+            tr("缩放: {:.0f}%   尺寸: {}×{}   ").format(self._zoom * 100, w, h)
+            + tr("(滚轮缩放 / 右键 pan / 双击重置)")
         )
 
     def fit_to_view(self):
@@ -194,9 +195,9 @@ class _ZoomableImageView(QWidget):
 class ImageViewDialog(QDialog):
     """大图查看对话框,用于点击缩略图时弹出。"""
 
-    def __init__(self, arr: np.ndarray, title: str = "查看大图", parent=None):
+    def __init__(self, arr: np.ndarray, title: str = "", parent=None):
         super().__init__(parent)
-        self.setWindowTitle(title)
+        self.setWindowTitle(title or tr("查看大图"))
         self.resize(900, 700)
         layout = QVBoxLayout(self)
         info = QLabel(f"{arr.shape}  dtype={arr.dtype}")
@@ -252,7 +253,7 @@ class _ChannelPreview(QFrame):
             "QLabel:hover { border:1px solid #0a84ff; }"
         )
         self.thumb.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.thumb.setToolTip("点击查看大图(滚轮缩放 / 右键 pan / 双击重置)")
+        self.thumb.setToolTip(tr("点击查看大图(滚轮缩放 / 右键 pan / 双击重置)"))
         layout.addWidget(self.thumb, stretch=1)
 
     def set_title(self, text: str) -> None:
@@ -262,7 +263,7 @@ class _ChannelPreview(QFrame):
     def set_array(self, arr: Optional[np.ndarray]) -> None:
         self._arr = arr
         if arr is None or arr.size == 0:
-            self.thumb.setText("empty\n(点击查看)")
+            self.thumb.setText(tr("empty\n(点击查看)"))
             self.thumb.setPixmap(QPixmap())
             return
         sampled = _preview_sample(arr)
@@ -298,11 +299,12 @@ class PreviewWidget(QGroupBox):
     """预览面板:4 通道灰度 + 最终 RGBA。点击缩略图可看大图。"""
 
     def __init__(self, parent=None):
-        super().__init__("预览", parent)
+        super().__init__(tr("预览"), parent)
         self._last_rgba: Optional[np.ndarray] = None
         self._last_map: Optional[ChannelMap] = None
         self._build_ui()
         self._wire_signals()
+        i18n.language_changed.connect(self.retranslate)
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -326,16 +328,24 @@ class PreviewWidget(QGroupBox):
         root.addWidget(self.rgba_preview, stretch=1)
 
         # 提示
-        hint = QLabel("💡 点击任意缩略图可看大图(滚轮缩放 / 右键 pan / 双击重置)")
-        hint.setStyleSheet("color:#888;")
-        root.addWidget(hint)
+        self._hint_label = QLabel(tr("💡 点击任意缩略图可看大图(滚轮缩放 / 右键 pan / 双击重置)"))
+        self._hint_label.setStyleSheet("color:#888;")
+        root.addWidget(self._hint_label)
+
+    def retranslate(self) -> None:
+        self.setTitle(tr("预览"))
+        self._hint_label.setText(tr("💡 点击任意缩略图可看大图(滚轮缩放 / 右键 pan / 双击重置)"))
+        for p in list(self.previews.values()) + [self.rgba_preview]:
+            p.thumb.setToolTip(tr("点击查看大图(滚轮缩放 / 右键 pan / 双击重置)"))
+            if p._arr is None:
+                p.thumb.setText(tr("empty\n(点击查看)"))
 
     def _wire_signals(self) -> None:
         pass  # _ChannelPreview.clicked → _on_preview_clicked 已在 _build_ui 连
 
     def _on_preview_clicked(self, arr: np.ndarray, title: str) -> None:
         """用户点击缩略图 → 弹大图查看器。"""
-        dlg = ImageViewDialog(arr, title=f"查看 - {title}", parent=self)
+        dlg = ImageViewDialog(arr, title=tr("查看 - {}").format(title), parent=self)
         dlg.exec()
 
     # -- 公开接口 -------------------------------------------------------

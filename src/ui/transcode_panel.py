@@ -31,6 +31,7 @@ from src.core.pixels import full_scale
 from src.core.presets import PRESETS
 from src.io.loader import IMAGE_OPEN_FILTER, load_image
 from src.io.saver import IMAGE_SAVE_FILTER, save_rgba
+from src.ui.i18n import i18n, tr
 from src.ui.preview_widget import _ChannelPreview
 
 # 13 个预设(从 PRESETS 取)
@@ -64,6 +65,7 @@ class TranscodePanelWidget(QWidget):
         self._wire_signals()
         # 初始清空预览
         self._refresh()
+        i18n.language_changed.connect(self.retranslate)
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -71,21 +73,23 @@ class TranscodePanelWidget(QWidget):
 
         # 格式选择 + 载入/导出
         top = QHBoxLayout()
-        top.addWidget(QLabel("源 preset:"))
+        self._src_label = QLabel(tr("源 preset:"))
+        top.addWidget(self._src_label)
         self.src_fmt = QComboBox()
         for pid in PRESET_OPTIONS:
             self.src_fmt.addItem(pid)
         top.addWidget(self.src_fmt)
         top.addSpacing(16)
-        top.addWidget(QLabel("目标 preset:"))
+        self._dst_label = QLabel(tr("目标 preset:"))
+        top.addWidget(self._dst_label)
         self.dst_fmt = QComboBox()
         for pid in PRESET_OPTIONS:
             self.dst_fmt.addItem(pid)
         top.addWidget(self.dst_fmt)
         top.addSpacing(16)
-        self.load_btn = QPushButton("载入源图…")
+        self.load_btn = QPushButton(tr("载入源图…"))
         top.addWidget(self.load_btn)
-        self.export_btn = QPushButton("导出目标图…")
+        self.export_btn = QPushButton(tr("导出目标图…"))
         top.addWidget(self.export_btn)
         top.addStretch()
         root.addLayout(top)
@@ -93,25 +97,44 @@ class TranscodePanelWidget(QWidget):
         # 预览区:源 / 目标 并排
         preview_row = QHBoxLayout()
         # 源
-        src_box = QGroupBox("源 RGBA")
-        src_layout = QVBoxLayout(src_box)
-        self.src_preview = _ChannelPreview("载入后显示")
+        self._src_box = QGroupBox(tr("源 RGBA"))
+        src_layout = QVBoxLayout(self._src_box)
+        self.src_preview = _ChannelPreview(tr("载入后显示"))
         self.src_preview.setMinimumHeight(280)
         src_layout.addWidget(self.src_preview)
-        preview_row.addWidget(src_box, stretch=1)
+        preview_row.addWidget(self._src_box, stretch=1)
         # 目标
-        dst_box = QGroupBox("目标 RGBA")
-        dst_layout = QVBoxLayout(dst_box)
-        self.dst_preview = _ChannelPreview("实时转换结果")
+        self._dst_box = QGroupBox(tr("目标 RGBA"))
+        dst_layout = QVBoxLayout(self._dst_box)
+        self.dst_preview = _ChannelPreview(tr("实时转换结果"))
         self.dst_preview.setMinimumHeight(280)
         dst_layout.addWidget(self.dst_preview)
-        preview_row.addWidget(dst_box, stretch=1)
+        preview_row.addWidget(self._dst_box, stretch=1)
         root.addLayout(preview_row, stretch=1)
 
         # 状态信息
-        self.status_label = QLabel("未载入源图。")
+        self.status_label = QLabel(tr("未载入源图。"))
         self.status_label.setWordWrap(True)
         root.addWidget(self.status_label)
+
+    def retranslate(self) -> None:
+        self._src_label.setText(tr("源 preset:"))
+        self._dst_label.setText(tr("目标 preset:"))
+        self.load_btn.setText(tr("载入源图…"))
+        self.export_btn.setText(tr("导出目标图…"))
+        self._src_box.setTitle(tr("源 RGBA"))
+        self._dst_box.setTitle(tr("目标 RGBA"))
+        self.src_preview.set_title(tr("载入后显示"))
+        self.dst_preview.set_title(tr("实时转换结果"))
+        for p in (self.src_preview, self.dst_preview):
+            p.thumb.setToolTip(tr("点击查看大图(滚轮缩放 / 右键 pan / 双击重置)"))
+            if p._arr is None:
+                p.thumb.setText(tr("empty\n(点击查看)"))
+        # 状态文本:重新生成(已载入则重算映射信息)
+        if self._src_arr is None:
+            self.status_label.setText(tr("未载入源图。"))
+        else:
+            self._refresh()
 
     def _wire_signals(self) -> None:
         self.src_fmt.currentIndexChanged.connect(self._refresh)
@@ -122,20 +145,20 @@ class TranscodePanelWidget(QWidget):
     # -- 载入 ---------------------------------------------------------
     def _on_load(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
-            self, "选择源图", "", IMAGE_OPEN_FILTER
+            self, tr("选择源图"), "", IMAGE_OPEN_FILTER
         )
         if not path:
             return
         try:
             arr = load_image(path)
         except Exception as exc:  # noqa: BLE001
-            self.status_message.emit("error", f"读图失败 ({Path(path).name}): {exc}")
+            self.status_message.emit("error", tr("读图失败 ({}): {}").format(Path(path).name, exc))
             return
         self._src_arr = _ensure_rgba(arr)
         h, w = self._src_arr.shape[:2]
-        self.status_label.setText(f"源图: {path}\n  尺寸: {w}×{h}  精度: {self._src_arr.dtype}")
+        self.status_label.setText(tr("源图: {}\n  尺寸: {}×{}  精度: {}").format(path, w, h, self._src_arr.dtype))
         self.status_message.emit(
-            "success", f"已载入源图: {Path(path).name} ({w}×{h}, {self._src_arr.dtype})",
+            "success", tr("已载入源图: {} ({}×{}, {})").format(Path(path).name, w, h, self._src_arr.dtype),
         )
         self._refresh()
 
@@ -159,29 +182,29 @@ class TranscodePanelWidget(QWidget):
             dst_preset = get_preset(dst_id)
         except ValueError as exc:
             self.dst_preview.set_array(None)
-            self.status_label.setText(f"未知 preset: {exc}")
+            self.status_label.setText(tr("未知 preset: {}").format(exc))
             return
         # 用源 preset 的 mapping 解析 → 用目标 preset 的 mapping 重新打包
         try:
             out = transcode_between_presets(self._src_arr, src_preset, dst_preset)
         except Exception as exc:  # noqa: BLE001
             self.dst_preview.set_array(None)
-            self.status_label.setText(f"转换失败: {exc}")
-            self.status_message.emit("error", f"转换失败 ({src_id}→{dst_id}): {exc}")
+            self.status_label.setText(tr("转换失败: {}").format(exc))
+            self.status_message.emit("error", tr("转换失败 ({}→{}): {}").format(src_id, dst_id, exc))
             return
         self.dst_preview.set_array(out)
         composed = compose_token_mappings(src_preset.mapping, dst_preset.mapping)
         h, w = self._src_arr.shape[:2]
         self.status_label.setText(
-            f"源: {src_id}  →  目标: {dst_id}\n"
-            f"  源尺寸: {w}×{h}\n"
-            f"  实际映射: {[t.value for t in composed]}"
+            tr("源: {}  →  目标: {}\n").format(src_id, dst_id)
+            + tr("  源尺寸: {}×{}\n").format(w, h)
+            + tr("  实际映射: {}").format([t.value for t in composed])
         )
 
     # -- 导出 ---------------------------------------------------------
     def _on_export(self) -> None:
         if self._src_arr is None:
-            self.status_message.emit("warning", "请先在互转模式载入源图(顶部「载入源图…」)")
+            self.status_message.emit("warning", tr("请先在互转模式载入源图(顶部「载入源图…」)"))
             return
         from src.core.presets import get_preset
         src_preset = get_preset(self.src_fmt.currentText())
@@ -189,7 +212,7 @@ class TranscodePanelWidget(QWidget):
         suffix = ".exr" if self._src_arr.dtype.kind == "f" else ".png"
         default_name = f"transcoded_{dst_preset.suffix.lstrip('_')}{suffix}"
         path, _ = QFileDialog.getSaveFileName(
-            self, "导出目标图", default_name, IMAGE_SAVE_FILTER
+            self, tr("导出目标图"), default_name, IMAGE_SAVE_FILTER
         )
         if not path:
             return
@@ -197,6 +220,6 @@ class TranscodePanelWidget(QWidget):
             out = transcode_between_presets(self._src_arr, src_preset, dst_preset)
             save_rgba(out, path)
         except Exception as exc:  # noqa: BLE001
-            self.status_message.emit("error", f"导出失败 ({Path(path).name}): {exc}")
+            self.status_message.emit("error", tr("导出失败 ({}): {}").format(Path(path).name, exc))
             return
-        self.status_message.emit("success", f"互转图已导出: {path}  ({src_preset.id} → {dst_preset.id})")
+        self.status_message.emit("success", tr("互转图已导出: {}  ({} → {})").format(path, src_preset.id, dst_preset.id))

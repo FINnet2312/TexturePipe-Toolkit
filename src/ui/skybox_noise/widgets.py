@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.ui.i18n import tr
+
 
 class ImageLabel(QWidget):
     """可缩放/平移的图像视图。
@@ -44,7 +46,7 @@ class ImageLabel(QWidget):
         root.setSpacing(0)
 
         # 承载图像的 QLabel,尺寸跟随缩放
-        self._lbl = QLabel(f"{title}\n(无图像)")
+        self._lbl = QLabel(tr("{}\n(无图像)").format(title))
         self._lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._lbl.setSizePolicy(
             QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed,
@@ -91,7 +93,7 @@ class ImageLabel(QWidget):
             self._title = title
         if arr is None:
             self._pixmap = None
-            self._lbl.setText(f"{self._title}\n(无图像)")
+            self._lbl.setText(tr("{}\n(无图像)").format(self._title))
             self._lbl.setPixmap(QPixmap())
             self._zoom_lbl.setText("")
             return
@@ -108,6 +110,12 @@ class ImageLabel(QWidget):
         self._apply_zoom()
         self._fit_if_ready()
 
+    def set_title(self, title: str) -> None:
+        """语言切换时更新标题;无图时同步刷新占位文本。"""
+        self._title = title
+        if self._pixmap is None or self._pixmap.isNull():
+            self._lbl.setText(tr("{}\n(无图像)").format(title))
+
     # -- 缩放 ----------------------------------------------------------
     def _apply_zoom(self) -> None:
         if self._pixmap is None or self._pixmap.isNull():
@@ -123,7 +131,9 @@ class ImageLabel(QWidget):
         self._lbl.setPixmap(scaled)
         self._lbl.resize(new_w, new_h)
         self._zoom_lbl.setText(
-            f"{self._zoom * 100:.0f}%  ({w}x{h})   滚轮缩放 / 右键平移 / 双击复位",
+            tr("{}%  ({}x{})   滚轮缩放 / 右键平移 / 双击复位").format(
+                f"{self._zoom * 100:.0f}", w, h,
+            ),
         )
 
     def fit_to_view(self) -> None:
@@ -258,7 +268,8 @@ class ParamSlider(QWidget):
                  parent=None):
         super().__init__(parent)
         from PySide6.QtWidgets import QLabel
-        self.label = QLabel(f"{label}:")
+        self.label = QLabel()
+        self.set_label(label)
         self.value_label = QLabel(f"{value:.{decimals}f}")
         self.value_label.setMinimumWidth(60)
         self.value_label.setAlignment(
@@ -294,6 +305,10 @@ class ParamSlider(QWidget):
 
     def setValue(self, v: float) -> None:  # noqa: N802
         self.slider.setValue(int(round(v / self.step)))
+
+    def set_label(self, label: str) -> None:
+        """语言切换时更新滑杆标签。"""
+        self.label.setText(f"{label}:")
 
 
 __all__ = ["ImageLabel", "ParamSlider"]

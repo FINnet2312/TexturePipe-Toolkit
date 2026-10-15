@@ -42,6 +42,7 @@ from src.core.slot import (
 from src.core.pixels import to_display_u8
 from src.io.loader import IMAGE_OPEN_FILTER, SUPPORTED_IMAGE_EXTS
 from src.io.saver import IMAGE_SAVE_FILTER
+from src.ui.i18n import i18n, tr
 
 _DROP_EXTS = SUPPORTED_IMAGE_EXTS
 _THUMB_SIZE = 64
@@ -86,6 +87,7 @@ class SlotWidget(QFrame):
         self._build_ui()
         self._wire_signals()
         self._refresh_ui_from_slot()
+        i18n.language_changed.connect(self.retranslate)
 
     # -- 4 槽主题色 -----------------------------------------------------
     # R=红 / G=绿 / B=蓝 / A=紫(灰紫,跟其它 3 色区分明显)
@@ -131,13 +133,15 @@ class SlotWidget(QFrame):
         root.addLayout(thumb_row)
 
         # display_name
-        root.addWidget(QLabel("显示名:"))
+        self._name_label = QLabel(tr("显示名:"))
+        root.addWidget(self._name_label)
         self.name_edit = QLineEdit()
-        self.name_edit.setPlaceholderText("(可填中文/英文)")
+        self.name_edit.setPlaceholderText(tr("(可填中文/英文)"))
         root.addWidget(self.name_edit)
 
         # semantic
-        root.addWidget(QLabel("语义:"))
+        self._semantic_label = QLabel(tr("语义:"))
+        root.addWidget(self._semantic_label)
         self.semantic_combo = QComboBox()
         for sem in Semantic.data_channels():
             self.semantic_combo.addItem(sem.value, sem)
@@ -146,28 +150,30 @@ class SlotWidget(QFrame):
         root.addWidget(self.semantic_combo)
 
         # token(替代 channel_in_file + invert)
-        root.addWidget(QLabel("源 token:"))
+        self._token_label = QLabel(tr("源 token:"))
+        root.addWidget(self._token_label)
         self.token_combo = QComboBox()
         for t in ChannelToken:
-            self.token_combo.addItem(_TOKEN_LABELS[t], t)
+            self.token_combo.addItem(tr(_TOKEN_LABELS[t]), t)
         self.token_combo.setCurrentIndex(0)
         root.addWidget(self.token_combo)
 
         # color_space
-        color_label = QLabel("颜色空间标签:")
-        color_label.setToolTip("当前版本仅记录语义标签,不会改写通道数值或 PNG gamma。")
-        root.addWidget(color_label)
+        self._color_label = QLabel(tr("颜色空间标签:"))
+        self._color_label.setToolTip(tr("当前版本仅记录语义标签,不会改写通道数值或 PNG gamma。"))
+        root.addWidget(self._color_label)
         self.colorspace_combo = QComboBox()
         for cs in ColorSpace:
             self.colorspace_combo.addItem(cs.value, cs)
         root.addWidget(self.colorspace_combo)
 
         # 源文件
-        root.addWidget(QLabel("源文件:"))
+        self._file_label = QLabel(tr("源文件:"))
+        root.addWidget(self._file_label)
         file_row = QHBoxLayout()
         self.file_edit = QLineEdit()
         self.file_edit.setReadOnly(True)
-        self.file_edit.setPlaceholderText("(拖入贴图或点浏览)")
+        self.file_edit.setPlaceholderText(tr("(拖入贴图或点浏览)"))
         file_row.addWidget(self.file_edit, stretch=1)
         self.browse_btn = QPushButton("…")
         self.browse_btn.setFixedWidth(28)
@@ -177,23 +183,54 @@ class SlotWidget(QFrame):
         # 单槽操作:第一行 导出 / 替换 / 清空(1:1:1 等分)
         ops_row = QHBoxLayout()
         ops_row.setSpacing(4)
-        self.export_btn = QPushButton("导出")
-        self.export_btn.setToolTip("把当前通道(已应用 token)导出为单通道灰度 PNG")
+        self.export_btn = QPushButton(tr("导出"))
+        self.export_btn.setToolTip(tr("把当前通道(已应用 token)导出为单通道灰度 PNG"))
         ops_row.addWidget(self.export_btn, stretch=1)
-        self.replace_btn = QPushButton("替换")
-        self.replace_btn.setToolTip("用另一个源文件替换本槽(保留 token / invert / semantic / colorspace)")
+        self.replace_btn = QPushButton(tr("替换"))
+        self.replace_btn.setToolTip(tr("用另一个源文件替换本槽(保留 token / invert / semantic / colorspace)"))
         ops_row.addWidget(self.replace_btn, stretch=1)
-        self.clear_btn = QPushButton("清空")
-        self.clear_btn.setToolTip("清空本槽所有数据")
+        self.clear_btn = QPushButton(tr("清空"))
+        self.clear_btn.setToolTip(tr("清空本槽所有数据"))
         ops_row.addWidget(self.clear_btn, stretch=1)
         root.addLayout(ops_row)
 
         # 第二行:复杂编辑(独占一行,宽度 = 上面 3 个按钮之和,字数多,避免挤压)
-        self.advanced_btn = QPushButton("复杂编辑")
-        self.advanced_btn.setToolTip("打开独立窗口:PS 风格调整 + 15 种混合模式 + 3 点 LUT + 第二张图")
+        self.advanced_btn = QPushButton(tr("复杂编辑"))
+        self.advanced_btn.setToolTip(tr("打开独立窗口:PS 风格调整 + 15 种混合模式 + 3 点 LUT + 第二张图"))
         root.addWidget(self.advanced_btn)
 
         root.addStretch()
+
+    # -- 语言切换 -------------------------------------------------------
+    def retranslate(self) -> None:
+        self._name_label.setText(tr("显示名:"))
+        self.name_edit.setPlaceholderText(tr("(可填中文/英文)"))
+        self._semantic_label.setText(tr("语义:"))
+        self._token_label.setText(tr("源 token:"))
+        # token 下拉:重建条目文本,保留当前选中
+        current_token = self.token_combo.currentData()
+        self._suspend_signals = True
+        try:
+            self.token_combo.clear()
+            for t in ChannelToken:
+                self.token_combo.addItem(tr(_TOKEN_LABELS[t]), t)
+            idx = self.token_combo.findData(current_token)
+            if idx >= 0:
+                self.token_combo.setCurrentIndex(idx)
+        finally:
+            self._suspend_signals = False
+        self._color_label.setText(tr("颜色空间标签:"))
+        self._color_label.setToolTip(tr("当前版本仅记录语义标签,不会改写通道数值或 PNG gamma。"))
+        self._file_label.setText(tr("源文件:"))
+        self.file_edit.setPlaceholderText(tr("(拖入贴图或点浏览)"))
+        self.export_btn.setText(tr("导出"))
+        self.export_btn.setToolTip(tr("把当前通道(已应用 token)导出为单通道灰度 PNG"))
+        self.replace_btn.setText(tr("替换"))
+        self.replace_btn.setToolTip(tr("用另一个源文件替换本槽(保留 token / invert / semantic / colorspace)"))
+        self.clear_btn.setText(tr("清空"))
+        self.clear_btn.setToolTip(tr("清空本槽所有数据"))
+        self.advanced_btn.setText(tr("复杂编辑"))
+        self.advanced_btn.setToolTip(tr("打开独立窗口:PS 风格调整 + 15 种混合模式 + 3 点 LUT + 第二张图"))
 
     def _wire_signals(self) -> None:
         self.name_edit.textChanged.connect(self._on_edited)
@@ -304,7 +341,7 @@ class SlotWidget(QFrame):
     def _on_browse(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            f"选择 {self.channel_name} 通道源文件",
+            tr("选择 {} 通道源文件").format(self.channel_name),
             "",
             IMAGE_OPEN_FILTER,
         )
@@ -314,7 +351,7 @@ class SlotWidget(QFrame):
     def _on_export(self) -> None:
         """把当前通道（已应用 token 后）按所选格式导出。"""
         if self._slot.data is None:
-            self.status_message.emit("warning", f"{self.channel_name} 槽为空,先载入源文件再导出")
+            self.status_message.emit("warning", tr("{} 槽为空,先载入源文件再导出").format(self.channel_name))
             return
         # 默认文件名:用显示名(若空则用 channel_name)
         stem = (self._slot.display_name or self.channel_name).strip() or self.channel_name
@@ -323,7 +360,7 @@ class SlotWidget(QFrame):
         default_name = f"{stem}_{self.channel_name}{suffix}"
         path, _ = QFileDialog.getSaveFileName(
             self,
-            f"导出 {self.channel_name} 通道",
+            tr("导出 {} 通道").format(self.channel_name),
             default_name,
             IMAGE_SAVE_FILTER,
         )
@@ -333,22 +370,22 @@ class SlotWidget(QFrame):
             from src.io.saver import save_grayscale
             save_grayscale(self._slot.data, path)
         except Exception as exc:  # noqa: BLE001
-            self.status_message.emit("error", f"导出 {self.channel_name} 通道失败: {exc}")
+            self.status_message.emit("error", tr("导出 {} 通道失败: {}").format(self.channel_name, exc))
             return
-        self.status_message.emit("success", f"{self.channel_name} 通道已导出到: {path}")
+        self.status_message.emit("success", tr("{} 通道已导出到: {}").format(self.channel_name, path))
 
     def _on_replace(self) -> None:
         """用新源文件替换本槽(保留 token / semantic / colorspace / invert)。"""
         path, _ = QFileDialog.getOpenFileName(
             self,
-            f"替换 {self.channel_name} 通道源文件",
+            tr("替换 {} 通道源文件").format(self.channel_name),
             "",
             IMAGE_OPEN_FILTER,
         )
         if not path:
             return
         self._assign_file(Path(path))
-        self.status_message.emit("info", f"{self.channel_name} 槽已替换源文件: {Path(path).name}")
+        self.status_message.emit("info", tr("{} 槽已替换源文件: {}").format(self.channel_name, Path(path).name))
 
     def _advanced_initial_data(self) -> Optional[np.ndarray]:
         """返回复杂编辑器应使用的母版数据，而不是已经按输出规格裁切的预览。
@@ -376,17 +413,17 @@ class SlotWidget(QFrame):
         except Exception as exc:  # noqa: BLE001
             self.status_message.emit(
                 "error",
-                f"{self.channel_name} 槽原始贴图加载失败: {exc}",
+                tr("{} 槽原始贴图加载失败: {}").format(self.channel_name, exc),
             )
             return
         if initial is None:
-            self.status_message.emit("warning", f"{self.channel_name} 槽为空,先载入源文件或 token 提取后再编辑")
+            self.status_message.emit("warning", tr("{} 槽为空,先载入源文件或 token 提取后再编辑").format(self.channel_name))
             return
         from src.ui.advanced_editor import AdvancedEditorDialog
         dlg = AdvancedEditorDialog(
             self,
             initial=initial,
-            title=f"复杂编辑 - {self.channel_name} 槽",
+            title=tr("复杂编辑 - {} 槽").format(self.channel_name),
         )
         # 转发 dlg 内部状态消息到 slot 的 status_message
         dlg.status_message.connect(self.status_message)
@@ -400,7 +437,7 @@ class SlotWidget(QFrame):
             self.set_thumbnail(self._slot.data)
             # 触发上层 debounce + 入 undo 栈
             self._emit_edited()
-            self.status_message.emit("success", f"{self.channel_name} 槽已应用复杂编辑结果")
+            self.status_message.emit("success", tr("{} 槽已应用复杂编辑结果").format(self.channel_name))
 
     def _on_clear(self) -> None:
         had_data = self._slot.data is not None
@@ -417,7 +454,7 @@ class SlotWidget(QFrame):
         self.clear_thumbnail()
         self._emit_edited()
         if had_data:
-            self.status_message.emit("info", f"{self.channel_name} 槽已清空")
+            self.status_message.emit("info", tr("{} 槽已清空").format(self.channel_name))
 
     def _assign_file(self, path: Path, token: Optional[ChannelToken] = None) -> None:
         """把源文件绑到该槽。
@@ -438,7 +475,7 @@ class SlotWidget(QFrame):
         finally:
             self._suspend_signals = False
         self._emit_edited()
-        self.status_message.emit("info", f"{self.channel_name} 槽载入源文件: {path.name}")
+        self.status_message.emit("info", tr("{} 槽载入源文件: {}").format(self.channel_name, path.name))
 
     def _accept_url(self, path: Path) -> bool:
         return path.suffix.lower() in _DROP_EXTS and path.exists()

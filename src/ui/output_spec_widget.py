@@ -41,6 +41,7 @@ from src.core.output_spec import (
     SizePreset,
 )
 from src.io.saver import IMAGE_SAVE_FILTER
+from src.ui.i18n import i18n, tr
 
 
 class OutputSpecWidget(QGroupBox):
@@ -51,11 +52,12 @@ class OutputSpecWidget(QGroupBox):
     status_message = Signal(str, str)  # (level, msg)
 
     def __init__(self, parent=None):
-        super().__init__("输出规格", parent)
+        super().__init__(tr("输出规格"), parent)
         self._suspend = False
         self._build_ui()
         self._wire_signals()
         self._refresh_enabled()
+        i18n.language_changed.connect(self.retranslate)
 
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -67,7 +69,8 @@ class OutputSpecWidget(QGroupBox):
         for sp in SizePreset:
             self.preset_combo.addItem(sp.value, sp)
         self.preset_combo.setCurrentIndex(0)
-        form.addRow("尺寸档位:", self.preset_combo)
+        self._preset_label = QLabel(tr("尺寸档位:"))
+        form.addRow(self._preset_label, self.preset_combo)
 
         # width / height(同 row)
         wh_row = QHBoxLayout()
@@ -82,44 +85,62 @@ class OutputSpecWidget(QGroupBox):
         wh_row.addWidget(self.height_spin)
         wh_widget = QWidget()
         wh_widget.setLayout(wh_row)
-        form.addRow("自定义 (W × H):", wh_widget)
+        self._custom_label = QLabel(tr("自定义 (W × H):"))
+        form.addRow(self._custom_label, wh_widget)
 
         # resize_mode
         self.resize_mode_combo = QComboBox()
         for m in ResizeMode:
             self.resize_mode_combo.addItem(m.value, m)
-        form.addRow("resize 模式:", self.resize_mode_combo)
+        self._resize_mode_label = QLabel(tr("resize 模式:"))
+        form.addRow(self._resize_mode_label, self.resize_mode_combo)
 
         # resize_filter
         self.resize_filter_combo = QComboBox()
         for f in ResizeFilter:
             self.resize_filter_combo.addItem(f.value, f)
-        form.addRow("resize 滤镜:", self.resize_filter_combo)
+        self._resize_filter_label = QLabel(tr("resize 滤镜:"))
+        form.addRow(self._resize_filter_label, self.resize_filter_combo)
 
         # force_pot
-        self.force_pot_check = QCheckBox("force_pot (对齐到 2 的幂)")
+        self.force_pot_check = QCheckBox(tr("force_pot (对齐到 2 的幂)"))
         form.addRow("", self.force_pot_check)
 
         # pot_strategy
         self.pot_strategy_combo = QComboBox()
         for p in PotStrategy:
             self.pot_strategy_combo.addItem(p.value, p)
-        form.addRow("POT 策略:", self.pot_strategy_combo)
+        self._pot_label = QLabel(tr("POT 策略:"))
+        form.addRow(self._pot_label, self.pot_strategy_combo)
 
         root.addLayout(form)
 
         # 导出
         export_row = QHBoxLayout()
-        export_row.addWidget(QLabel("导出路径:"))
+        self._path_label = QLabel(tr("导出路径:"))
+        export_row.addWidget(self._path_label)
         self.path_edit = QLineEdit()
-        self.path_edit.setPlaceholderText("(选择 PNG / TIFF / EXR 输出位置)")
+        self.path_edit.setPlaceholderText(tr("(选择 PNG / TIFF / EXR 输出位置)"))
         export_row.addWidget(self.path_edit, stretch=1)
         self.browse_btn = QPushButton("…")
         self.browse_btn.setFixedWidth(28)
         export_row.addWidget(self.browse_btn)
-        self.export_btn = QPushButton("导出贴图")
+        self.export_btn = QPushButton(tr("导出贴图"))
         export_row.addWidget(self.export_btn)
         root.addLayout(export_row)
+
+    # -- 语言切换 -------------------------------------------------------
+    def retranslate(self) -> None:
+        self.setTitle(tr("输出规格"))
+        self._preset_label.setText(tr("尺寸档位:"))
+        self._custom_label.setText(tr("自定义 (W × H):"))
+        self._resize_mode_label.setText(tr("resize 模式:"))
+        self._resize_filter_label.setText(tr("resize 滤镜:"))
+        self.force_pot_check.setText(tr("force_pot (对齐到 2 的幂)"))
+        self._pot_label.setText(tr("POT 策略:"))
+        self._path_label.setText(tr("导出路径:"))
+        self.path_edit.setPlaceholderText(tr("(选择 PNG / TIFF / EXR 输出位置)"))
+        self.export_btn.setText(tr("导出贴图"))
 
     def _wire_signals(self) -> None:
         self.preset_combo.currentIndexChanged.connect(self._on_changed)
@@ -209,7 +230,7 @@ class OutputSpecWidget(QGroupBox):
         self.spec_changed.emit()
         # 给个简要提示(spec 改变 → 触发重打包)
         w, h = self.get_spec().effective_size()
-        self.status_message.emit("info", f"输出规格已更新 → {w}×{h}")
+        self.status_message.emit("info", tr("输出规格已更新 → {}×{}").format(w, h))
 
     def _refresh_enabled(self) -> None:
         sp = self._preset_from_combo(self.preset_combo, SizePreset.CUSTOM)
@@ -219,17 +240,17 @@ class OutputSpecWidget(QGroupBox):
 
     def _on_browse(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
-            self, "选择导出路径", self.path_edit.text() or "output.png",
+            self, tr("选择导出路径"), self.path_edit.text() or "output.png",
             IMAGE_SAVE_FILTER,
         )
         if path:
             self.path_edit.setText(path)
-            self.status_message.emit("info", f"已选择导出路径: {path}")
+            self.status_message.emit("info", tr("已选择导出路径: {}").format(path))
 
     def _on_export(self) -> None:
         p = self.get_export_path()
         if p is None:
-            self.status_message.emit("warning", "请先选择导出路径（点右侧「浏览…」）")
+            self.status_message.emit("warning", tr("请先选择导出路径（点右侧「浏览…」）"))
             return
         if not p.suffix:
             p = p.with_suffix(".png")
