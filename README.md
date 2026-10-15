@@ -1,4 +1,23 @@
-# TexturePipe-Toolkit — 贴图通道转换工具(texpipe)
+# TexturePipe-Toolkit
+
+<p align="center">
+  <img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg">
+  <img alt="Release" src="https://img.shields.io/badge/release-v1.1.0-green.svg">
+  <img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-yellow.svg">
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-lightgrey.svg">
+</p>
+
+**English** | [中文](#中文简介)
+
+A lightweight desktop tool for game artists and technical artists to pack, split, and convert texture channel maps. Combine grayscale maps into packed textures (ORM / RMA / ROM / MRA …), split packed textures back into channels, or convert between naming conventions — with a PS-style advanced editor, a procedural Skybox Noise plugin, and both GUI and CLI for pipeline automation. Pure Python, MIT licensed, UI in English and 中文.
+
+## 中文简介
+
+一款轻量化的贴图通道打包 / 拆分 / 互转桌面工具,面向游戏美术和 TA。把几张单通道灰度图合成 ORM / RMA 等打包贴图,或反向拆分、在不同命名约定间互转;内置 PS 风格复杂编辑器、程序化 Skybox Noise 插件,GUI 与命令行双入口方便接入流水线。纯 Python 实现,MIT 开源协议,界面支持中英文一键切换。
+
+---
+
+# 贴图通道转换工具(texpipe)
 
 把几张单通道灰度图合成一张打包贴图(ORM / RMA 之类),或者反过来拆,
 或者不同命名约定之间互转 —— 这就是 `texpipe` 干的事。面向游戏美术 / TA,
