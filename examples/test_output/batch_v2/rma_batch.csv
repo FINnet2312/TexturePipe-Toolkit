@@ -1,0 +1,5 @@
+SourceAsset,TargetAsset,PresetId,PresetLabel,OutputR,OutputG,OutputB,OutputA,RemoveAlpha,Status
+ao.png,ao_RMA.png,rma,"RMA (R=粗糙度, G=金属度, B=AO)",G,B,R,A,True,OK
+height.png,height_RMA.png,rma,"RMA (R=粗糙度, G=金属度, B=AO)",G,B,R,A,True,OK
+metallic.png,metallic_RMA.png,rma,"RMA (R=粗糙度, G=金属度, B=AO)",G,B,R,A,True,OK
+roughness.png,roughness_RMA.png,rma,"RMA (R=粗糙度, G=金属度, B=AO)",G,B,R,A,True,OK

@@ -1,0 +1,13 @@
+# 贴图通道转换工具 — Python 依赖
+# 安装: pip install -r requirements.txt
+
+numpy>=1.24
+Pillow>=10.0
+PySide6>=6.5
+pypng>=0.20220715.0
+tifffile>=2024.8
+OpenEXR>=3.3
+
+# 可选:Skybox Noise 插件(equirect/cube 投影噪声)用 numba 加速 25-40x
+# 缺了会自动 fallback 到 numpy(慢一些,功能完全等价)
+# numba>=0.58

@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Local review/build artifacts; not part of the imported 1.0 snapshot.
+/1.0.rar
+/.venv-build/
+/build/
+/dist/
+/eternal-moment-prototype/

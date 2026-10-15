@@ -1,0 +1,49 @@
+{
+  "map": {
+    "R": {
+      "semantic": "ao",
+      "display_name": "examples\\test_input\\ao.png",
+      "source_type": "file",
+      "file_path": "examples\\test_input\\ao.png",
+      "token": "R",
+      "solid_value": 0,
+      "color_space": "Linear"
+    },
+    "G": {
+      "semantic": "roughness",
+      "display_name": "examples\\test_input\\roughness.png",
+      "source_type": "file",
+      "file_path": "examples\\test_input\\roughness.png",
+      "token": "R",
+      "solid_value": 0,
+      "color_space": "Linear"
+    },
+    "B": {
+      "semantic": "metallic",
+      "display_name": "examples\\test_input\\metallic.png",
+      "source_type": "file",
+      "file_path": "examples\\test_input\\metallic.png",
+      "token": "R",
+      "solid_value": 0,
+      "color_space": "Linear"
+    },
+    "A": {
+      "semantic": "height",
+      "display_name": "examples\\test_input\\height.png",
+      "source_type": "file",
+      "file_path": "examples\\test_input\\height.png",
+      "token": "R",
+      "solid_value": 0,
+      "color_space": "Linear"
+    }
+  },
+  "spec": {
+    "width": 256,
+    "height": 256,
+    "size_preset": "custom",
+    "resize_mode": "stretch",
+    "resize_filter": "nearest",
+    "force_pot": false,
+    "pot_strategy": "round_up"
+  }
+}
