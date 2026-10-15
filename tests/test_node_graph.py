@@ -347,8 +347,9 @@ class NodeEditorUiTests(unittest.TestCase):
         dlg.close()
 
     def test_mouse_click_selects_node_and_updates_properties(self):
-        from PySide6.QtCore import Qt
-        from PySide6.QtTest import QTest
+        from PySide6.QtCore import QEvent, QPointF, Qt
+        from PySide6.QtGui import QMouseEvent
+        from PySide6.QtWidgets import QApplication
         from src.ui.skybox_noise.node_editor import _NodeItem
 
         dlg = self._dialog()
@@ -361,10 +362,18 @@ class NodeEditorUiTests(unittest.TestCase):
         )
         scene_point = target.mapToScene(target.boundingRect().center())
         viewport_point = dlg._view.mapFromScene(scene_point)
-        QTest.mouseClick(
-            dlg._view.viewport(), Qt.MouseButton.LeftButton,
-            pos=viewport_point,
-        )
+        # 不用 QTest.mouseClick:它在 Windows 上走操作系统级输入注入,
+        # 在 CI 的无桌面会话里会触发 Qt 原生堆损坏(0xC0000374)。
+        # 直接向 viewport 投递 QMouseEvent,同样覆盖 view→scene→item 的完整事件链。
+        for ev_type in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonRelease):
+            ev = QMouseEvent(
+                ev_type,
+                QPointF(viewport_point),
+                Qt.MouseButton.LeftButton,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+            )
+            QApplication.sendEvent(dlg._view.viewport(), ev)
         self.app.processEvents()
         self.assertEqual(dlg._selected_node_id, target.node.id)
         self.assertIn("FBM", dlg._props_title.text())
