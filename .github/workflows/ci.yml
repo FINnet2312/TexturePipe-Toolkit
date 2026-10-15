@@ -43,19 +43,20 @@ jobs:
       - name: Per-file test run (diagnostic)
         shell: cmd
         run: |
-          rem 逐文件运行,定位堆损坏发生在哪个测试文件
+          rem 用 discover -p 逐文件在独立进程运行(与完整运行相同的导入语义)
+          rem -X faulthandler: 原生崩溃时把 Python 栈直接写到控制台
           for %%f in (tests\test_*.py) do (
-            echo === %%f ===
-            python %%f
+            echo === %%~nxf ===
+            python -X faulthandler -m unittest discover -s tests -p %%~nxf -v
           )
+          exit /b 0
 
       - name: Run unit tests
         env:
           QT_QPA_PLATFORM: offscreen
         shell: cmd
         run: |
-          rem 用 cmd 避免 pwsh 对 stderr 的特殊处理;stdout/stderr 分开落盘再打印
-          python -m unittest discover -s tests -q 1> unittest_out.txt 2> unittest_err.txt
+          python -X faulthandler -m unittest discover -s tests -q 1> unittest_out.txt 2> unittest_err.txt
           set CODE=%ERRORLEVEL%
           echo --- STDOUT ---
           type unittest_out.txt
