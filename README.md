@@ -1,8 +1,9 @@
 # TexturePipe-Toolkit
 
 <p align="center">
+  <a href="https://github.com/FINnet2312/TexturePipe-Toolkit/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/FINnet2312/TexturePipe-Toolkit/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/FINnet2312/TexturePipe-Toolkit/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/FINnet2312/TexturePipe-Toolkit"></a>
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg">
-  <img alt="Release" src="https://img.shields.io/badge/release-v1.1.0-green.svg">
   <img alt="Python" src="https://img.shields.io/badge/python-3.10%2B-yellow.svg">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-lightgrey.svg">
 </p>
@@ -14,6 +15,16 @@ A lightweight desktop tool for game artists and technical artists to pack, split
 ## 中文简介
 
 一款轻量化的贴图通道打包 / 拆分 / 互转桌面工具,面向游戏美术和 TA。把几张单通道灰度图合成 ORM / RMA 等打包贴图,或反向拆分、在不同命名约定间互转;内置 PS 风格复杂编辑器、程序化 Skybox Noise 插件,GUI 与命令行双入口方便接入流水线。纯 Python 实现,MIT 开源协议,界面支持中英文一键切换。
+
+## ⬇️ 下载(Download for Windows)
+
+**[下载最新版 Texpipe — Windows x64](https://github.com/FINnet2312/TexturePipe-Toolkit/releases/latest)**
+
+解压 zip,双击其中的 `Texpipe.exe` 即可运行。**无需安装 Python,无需安装任何依赖**。
+
+**[Download the latest Texpipe — Windows x64](https://github.com/FINnet2312/TexturePipe-Toolkit/releases/latest)** — unzip and double-click `Texpipe.exe`. No Python or dependency installation needed.
+
+> 想从源码运行或自行打包?往下看「怎么打开」和「Windows EXE 版本」两节。
 
 ---
 
@@ -76,6 +87,8 @@ GUI 主窗口约 1500×820,**顶部 Tab:`编辑模式` / `互转模式` / `Skybo
 不依赖任何游戏引擎,纯 Python。
 
 ### Windows EXE 版本
+
+> 只想直接用,不想自己构建?见上方「⬇️ 下载」一节,Release 里有打包好的 exe。
 
 推荐发布目录版，双击 `build_exe.bat` 或运行：
 
