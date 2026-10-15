@@ -3,6 +3,14 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# CI 等环境的控制台可能是 cp1252 等非 UTF-8 编码,直接打印中文会
+# UnicodeEncodeError。统一把标准输出切到 UTF-8(失败字符兜底替换,不中断)。
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError, OSError):
+        pass
+
 # 1) Plugin 接口
 from src.core.plugin import Plugin
 from src.core.plugin_manager import PluginManager

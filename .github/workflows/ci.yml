@@ -17,6 +17,9 @@ jobs:
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: windows-latest
+    env:
+      # CI 控制台是 cp1252,强制 UTF-8 防止中文输出触发 UnicodeEncodeError
+      PYTHONIOENCODING: utf-8
     strategy:
       fail-fast: false
       matrix:
@@ -40,7 +43,13 @@ jobs:
       - name: Run unit tests
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m unittest discover -s tests -q
+        shell: pwsh
+        run: |
+          # 全部流写入日志文件再打印,即使进程异常退出也能看到输出
+          python -m unittest discover -s tests -q *> unittest.log
+          $code = $LASTEXITCODE
+          Get-Content unittest.log
+          if ($code -ne 0) { exit $code }
 
       - name: Skybox smoke test
         env:
