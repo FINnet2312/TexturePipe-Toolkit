@@ -40,6 +40,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Bisect imports (diagnostic)
+        shell: cmd
+        run: |
+          python -c "import numpy; print('numpy ok')" || echo CRASH numpy
+          python -c "import PIL; print('PIL ok')" || echo CRASH PIL
+          python -c "import png; print('png ok')" || echo CRASH png
+          python -c "import tifffile; print('tifffile ok')" || echo CRASH tifffile
+          python -c "import OpenEXR; print('OpenEXR ok')" || echo CRASH OpenEXR
+          python -c "from PySide6 import QtCore; print('QtCore ok')" || echo CRASH QtCore
+          python -c "from PySide6 import QtWidgets; print('QtWidgets ok')" || echo CRASH QtWidgets
+          python -c "from src.core import plugin_manager; print('src.core ok')" || echo CRASH src.core
+          python -c "from src.ui import main; print('src.ui.main ok')" || echo CRASH src.ui.main
+
       - name: Run unit tests
         env:
           QT_QPA_PLATFORM: offscreen
