@@ -549,25 +549,5 @@ py examples/verify_skybox_smoke.py  # Skybox Noise 冒烟(插件加载 / 渲染 
 
 ## 更新记录
 
-### 2026-08-11 — Skybox 节点图编辑器 + 可用性增强
+见 [CHANGELOG.md](CHANGELOG.md)。
 
-**新增功能**:
-- 可视化节点图编辑器(`🧩 编辑节点图`):节点库 / 画布拖拽连线 / 属性面板 / 自动预览 / 保存加载 JSON / 自动整理,详见「Skybox Noise 插件」章节
-- 内置 11 种节点:坐标源、FBM / 焦散 / Voronoi / Perlin、数学运算(9 种)、PS 混合(15 模式)、域扭曲、亮度对比度伽马、范围重映射、输出、**导入噪声贴图**(自定义贴图作为噪声源)
-- 细节放大镜:预览图右上角固定小窗,悬停显示 4x 放大细节
-- 图片拖放进 Tab 直接加载(自动识别投影)、`↺ 恢复默认` 一键复位、图片 LRU 缓存(最近 4 张)
-- 自定义噪声走后台 worker 线程渲染(传入节点图 JSON,UI 不卡)
-
-**重构 / 修复**:
-- 撤销/重做改为**快照式**:每次修改记录整图状态(上限 100 步),滑杆拖动整体算一步;修复了旧实现撤销无效的问题
-- 节点默认参数显式写入快照,撤销后参数可完整还原
-- `ImageLabel.eventFilter` 加防御守卫:修复 numba 首次调用触发 `numpy.ma` 惰性导入时,Shiboken 空包装在析构序列中引发 AttributeError 导致 Qt 事件派发报错的问题
-
-**测试**:150/150 单元测试通过，覆盖高精度 I/O、planar TIFF、HDR 合成、
-真实节点鼠标交互、Cubemap 方向、线程取消与代理预览；`verify_skybox_smoke.py`、`verify_ui.py`、
-`verify_ui_e2e.py` 全部通过。
-
-### 更早(同会话前段)
-- 集成 `skybox_noise` 为 texpipe 插件(7 模块,Plugin/PluginManager,numba 加速 + numpy fallback)
-- 启动器增强:缺 Python / 版本过旧时给出友好安装引导(winget / python.org / Store),不再静默失败
-- 修复:bat 中文 echo 破坏解析(启动器全 ASCII)、numba `parallel=True` 下 `np.zeros` 垃圾累积、Python walrus-in-arglist 语法错误
