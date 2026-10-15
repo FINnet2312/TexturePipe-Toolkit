@@ -43,13 +43,16 @@ jobs:
       - name: Run unit tests
         env:
           QT_QPA_PLATFORM: offscreen
-        shell: pwsh
+        shell: cmd
         run: |
-          # 全部流写入日志文件再打印,即使进程异常退出也能看到输出
-          python -m unittest discover -s tests -q *> unittest.log
-          $code = $LASTEXITCODE
-          Get-Content unittest.log
-          if ($code -ne 0) { exit $code }
+          rem 用 cmd 避免 pwsh 对 stderr 的特殊处理;stdout/stderr 分开落盘再打印
+          python -m unittest discover -s tests -q 1> unittest_out.txt 2> unittest_err.txt
+          set CODE=%ERRORLEVEL%
+          echo --- STDOUT ---
+          type unittest_out.txt
+          echo --- STDERR ---
+          type unittest_err.txt
+          exit /b %CODE%
 
       - name: Skybox smoke test
         env:
