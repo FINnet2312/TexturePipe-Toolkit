@@ -60,10 +60,18 @@ assert dlg.windowTitle() == "Node Graph Editor — Custom Noise"
 lib_texts = [dlg.list_lib.item(i).text() for i in range(dlg.list_lib.count())]
 assert "— Source —" in lib_texts, lib_texts
 assert "FBM Noise" in lib_texts, lib_texts
+
+# 切回中文:对话框是非模态长存对象,必须跟随刷新
+i18n.set_language("zh")
+assert dlg.windowTitle() == "节点图编辑器 — 自定义噪声", dlg.windowTitle()
+lib_texts = [dlg.list_lib.item(i).text() for i in range(dlg.list_lib.count())]
+assert "— 源 —" in lib_texts, lib_texts
+assert "FBM 噪声" in lib_texts, lib_texts
+tb_texts = [a.text() for a in dlg.findChildren(type(dlg._undo_act))]
+assert "↩ 撤销" in tb_texts, tb_texts
 dlg.close()
 
-# 切回中文
-i18n.set_language("zh")
+# 主窗口也已切回中文
 assert skybox._grp_input.title() == "输入"
 assert skybox.cmb_noise.itemText(0) == "FBM (基础)"
 assert scale_slider.label.text() == "空间尺度:"

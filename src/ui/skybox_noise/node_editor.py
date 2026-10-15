@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.core.file_cache import FileCache
-from src.ui.i18n import tr
+from src.ui.i18n import i18n, tr
 from .node_graph import (
     GraphEvaluator, NodeGraph, NodeGraphError, PORT_COORD, PORT_FIELD,
 )
@@ -293,35 +293,29 @@ class NodeEditorDialog(QDialog):
         self.preview_timer.setInterval(400)
         self.preview_timer.timeout.connect(self._refresh_preview)
 
-    # -- UI 搭建 --------------------------------------------------------
-    def _build_ui(self):
-        root = QVBoxLayout(self)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
+        # 对话框是非模态且长期存活的,语言切换时要跟着刷新
+        i18n.language_changed.connect(self.retranslate)
 
-        # 工具栏
-        tb = QToolBar()
-        tb.setMovable(False)
-        for text, slot in [
-            ("💾 保存图", self.save_graph),
-            ("📂 加载图", self.load_graph),
-            ("🎯 自动整理", self.auto_layout),
-            ("👁 预览", self._refresh_preview),
-        ]:
-            act = tb.addAction(tr(text), slot)
-        self._undo_act = tb.addAction(tr("↩ 撤销"), self.undo)
-        self._redo_act = tb.addAction(tr("↪ 重做"), self.redo)
-        self.chk_auto = QCheckBox(tr("自动预览"))
-        self.chk_auto.setChecked(True)
-        tb.addWidget(self.chk_auto)
-        root.addWidget(tb)
+    # -- 语言切换 --------------------------------------------------------
+    def retranslate(self) -> None:
+        self.setWindowTitle(tr("节点图编辑器 — 自定义噪声"))
+        for act, zh in self._tb_actions:
+            act.setText(tr(zh))
+        self._undo_act.setText(tr("↩ 撤销"))
+        self._redo_act.setText(tr("↪ 重做"))
+        self.chk_auto.setText(tr("自动预览"))
+        self._rebuild_lib()
+        self._refresh_props()
+        self._preview_title_lbl.setText(tr("噪声预览:"))
+        self._preview_lbl.set_title(tr("节点图预览"))
+        if self._status_lbl.text() in ("就绪", "Ready"):
+            self._status_lbl.setText(tr("就绪"))
+        # 画布上的节点名 / 端口名在 paint 时取 tr(),触发重绘即可
+        self._scene.update()
 
-        # 节点库 + 画布 + 属性
-        split = QSplitter(Qt.Orientation.Horizontal)
-
-        self.list_lib = QListWidget()
-        self.list_lib.setMinimumWidth(190)
-        self.list_lib.setMaximumWidth(240)
+    def _rebuild_lib(self) -> None:
+        """重建左侧节点库(语言切换时显示文本要重译,type_id 不变)。"""
+        self.list_lib.clear()
         for cat in NODE_CATEGORIES:
             if cat not in NODES_BY_CATEGORY or not NODES_BY_CATEGORY[cat]:
                 continue
@@ -335,6 +329,39 @@ class NodeEditorDialog(QDialog):
                 item.setData(Qt.ItemDataRole.UserRole, tid)
                 item.setToolTip(tr(nd.hint))
                 self.list_lib.addItem(item)
+
+    # -- UI 搭建 --------------------------------------------------------
+    def _build_ui(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        # 工具栏
+        tb = QToolBar()
+        tb.setMovable(False)
+        self._tb_actions: list[tuple[QAction, str]] = []
+        for text, slot in [
+            ("💾 保存图", self.save_graph),
+            ("📂 加载图", self.load_graph),
+            ("🎯 自动整理", self.auto_layout),
+            ("👁 预览", self._refresh_preview),
+        ]:
+            act = tb.addAction(tr(text), slot)
+            self._tb_actions.append((act, text))
+        self._undo_act = tb.addAction(tr("↩ 撤销"), self.undo)
+        self._redo_act = tb.addAction(tr("↪ 重做"), self.redo)
+        self.chk_auto = QCheckBox(tr("自动预览"))
+        self.chk_auto.setChecked(True)
+        tb.addWidget(self.chk_auto)
+        root.addWidget(tb)
+
+        # 节点库 + 画布 + 属性
+        split = QSplitter(Qt.Orientation.Horizontal)
+
+        self.list_lib = QListWidget()
+        self.list_lib.setMinimumWidth(190)
+        self.list_lib.setMaximumWidth(240)
+        self._rebuild_lib()
         self.list_lib.itemDoubleClicked.connect(self._on_lib_double_click)
         split.addWidget(self.list_lib)
 
@@ -363,7 +390,8 @@ class NodeEditorDialog(QDialog):
         self._props_scroll.setWidget(self._form_host)
         pv.addWidget(self._props_scroll, 1)
 
-        pv.addWidget(QLabel(tr("噪声预览:")))
+        self._preview_title_lbl = QLabel(tr("噪声预览:"))
+        pv.addWidget(self._preview_title_lbl)
         self._preview_lbl = ImageLabel(tr("节点图预览"))
         self._preview_lbl.setMinimumHeight(180)
         pv.addWidget(self._preview_lbl, 0)
