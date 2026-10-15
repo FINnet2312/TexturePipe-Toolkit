@@ -2,6 +2,18 @@
 
 本文件记录每个版本的主要变更。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/)。
 
+## [1.1.1] - 2026-10-15
+
+### 修复
+
+- Skybox 冒烟脚本在非 UTF-8 控制台(如 CI 的 cp1252 环境)打印中文时 UnicodeEncodeError 崩溃,改为强制 UTF-8 输出
+- 节点图点击选中测试在 CI 无桌面会话中触发 Qt 原生堆损坏(0xC0000374):`QTest.mouseClick` 的操作系统级输入注入改为直接投递 `QMouseEvent`
+
+### 构建 / CI
+
+- 新增 CI 工作流:push / PR 到 main 时,在 Windows + Python 3.10 / 3.11 / 3.12 上运行 150 个单元测试与 Skybox 冒烟测试
+- 新增发布工作流:推送 `v*` 标签自动 PyInstaller 打包 exe、计算 sha256、创建 GitHub Release;带后缀的标签(如 `-rc.1`)自动标记为预发布
+
 ## [1.1.0] - 2026-10-15
 
 ### 功能

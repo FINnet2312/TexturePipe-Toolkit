@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class PackagingContractTests(unittest.TestCase):
     def test_application_metadata_is_stable(self):
         self.assertEqual(APP_NAME, "Texpipe")
-        self.assertEqual(APP_VERSION, "1.1.1-rc.1")
+        self.assertEqual(APP_VERSION, "1.1.1")
         self.assertEqual((ROOT / "VERSION").read_text().strip(), APP_VERSION)
 
     def test_parser_supports_frozen_smoke_alias_and_version(self):
