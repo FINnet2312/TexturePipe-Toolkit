@@ -72,6 +72,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.ZIP }}
+          # 标签含 -(如 v1.1.1-rc.1)时自动标为预发布
+          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
           body: |
             Texpipe ${{ github.ref_name }} — Windows x64
